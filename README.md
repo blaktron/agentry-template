@@ -21,21 +21,24 @@ git clone https://github.com/your-namespace/my-briefagent && cd my-briefagent
 # 2. Make it yours: name, namespace, summary, instructions, capabilities.
 $EDITOR agent.yaml SKILL.md
 
-# 3. Validate offline — the same rules and scanners the registry runs.
+# 3. One-time machine setup: LLM provider + the docker MCP gateway.
+agentry setup
+
+# 4. Validate offline — the same rules and scanners the registry runs.
 agentry validate .
 
-# 4. See exactly what the runner will enforce (no docker needed).
+# 5. See exactly what the runner will enforce (no docker needed).
 agentry run --local . --dry-run --allow-unsigned --yes
 
-# 5. Run it once, isolated, with an output folder for reports.
+# 6. Run it once, isolated, with an output folder for reports.
 echo "your task here" | agentry run --local . --allow-unsigned --yes --out ./agentry-out
 
-# 6. Publish to the registry (scanned, signed, immutable), then anyone runs:
+# 7. Publish to the registry (scanned, signed, immutable), then anyone runs:
 agentry publish
 agentry run your-namespace/my-briefagent@^0.1 --input task.json
 ```
 
-`make validate`, `make dry-run`, and `make run` wrap steps 3–5.
+`make validate`, `make dry-run`, and `make run` wrap steps 4–6.
 
 ## Repository layout
 
@@ -175,6 +178,7 @@ per-run Docker MCP Gateway, and the companion tools server.
 | manifest declaration | tool(s) granted |
 |---|---|
 | — (always) | `write_report` — write files into the run's output folder |
+| — (always) | `list_inputs`, `read_input` — the run's provided input files, read-only |
 | `filesystem.read` | `fs_read`, `fs_list` |
 | `filesystem.write` | `fs_write` |
 | `network.egress` hosts | `fetch` (with optional declared-secret auth) |
@@ -182,8 +186,23 @@ per-run Docker MCP Gateway, and the companion tools server.
 
 **The runner contract**, appended to every instruction: tools come only
 from the gateway; the workspace is rooted at `/workspace` as seen by
-tools; report files must be written with `write_report`; the final
-message is the run's result.
+tools; provided input files are under `/inputs`; report files must be
+written with `write_report`; the final message is the run's result.
+
+**Input files:** hand the run external files with `agentry run --file
+PATH` (repeatable; files or directories). They mount read-only at
+`/inputs` on the tool plane — task material like stdin, no manifest
+capability needed. Output and receipts stay on the separate `/out`
+volume.
+
+**Machine setup & MCP profiles:** `agentry setup` configures your
+preferred LLM provider and stands up the docker MCP gateway once. The
+first run of a release that declares `secrets:` starts a guided setup
+that collects each key into the BriefAgent's **MCP profile** (stored per
+exact release signature); keep it for future runs or remove it on
+completion — configurable at install time with `--keep-profile`, the
+guided question, or the policy default. `agentry profiles list|remove`
+manages stored profiles.
 
 **Structured output:** ship an `output.schema.json` at the archive root
 (and list it in `publish.include`) and the runner embeds the schema in
@@ -218,10 +237,16 @@ registry's public scan report.
 
 ## Installing into an existing coding agent instead
 
-The same package installs into a host coding agent with **its** built-in
-tools standing in — nothing bundled either way:
+The same package installs into a host coding agent with **that
+application's** MCP servers and built-in tools standing in — nothing
+bundled either way, and no docker gateway involved:
 
 ```bash
+agentry install your-namespace/my-briefagent --provider claude    # Claude Code
+agentry install your-namespace/my-briefagent --provider codex     # Codex
+agentry install your-namespace/my-briefagent --provider openclaw  # OpenClaw
+
+# or by explicit target:
 agentry install your-namespace/my-briefagent            # target by kind
 agentry install your-namespace/my-briefagent --target claude-skill
 agentry install your-namespace/my-briefagent --target agents-md
