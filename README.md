@@ -147,6 +147,29 @@ Semantic categories the BriefAgent touches, for review and audit:
 `other`. Operators may catalog extra MCP servers per category in their
 runner policy; categories you did not declare are never wired in.
 
+#### `capabilities.mcpServers`
+
+The MCP servers your BriefAgent requires, declared explicitly and
+**version-pinned to this release**:
+
+```yaml
+capabilities:
+  mcpServers:
+    - npm: "@modelcontextprotocol/server-github"   # or `pypi: package-name`
+      version: 2026.1.2       # exact version — ranges are rejected
+      tools: [list_issues]    # optional: only these tools are granted
+      secrets: [GITHUB_PAT]   # env-var NAMES the server needs, never values
+      egress: [api.github.com]  # the server's own outbound allowlist
+```
+
+Installing the agent installs the servers from the operator's trusted
+registries (npm/PyPI by default), pins the resolved artifacts, and
+configures the gateway to load them for **this exact release only** — a
+new version starts the trust decision over, and removal deletes the
+configuration and keys unless the operator explicitly keeps them. Server
+`secrets` are collected once into the release's MCP profile by the guided
+setup, exactly like agent-level secrets.
+
 ### `dependencies`
 
 ```yaml

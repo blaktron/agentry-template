@@ -99,6 +99,18 @@ capabilities:
   # Semantic data categories touched, for review and audit:
   # email | calendar | files | tickets | code | messages | payments | other
   # dataAccess: [tickets]
+  # MCP servers this BriefAgent requires (RUNNER-PLAN-3): exactly one of
+  # npm/pypi per entry, and an EXACT version — the pin is part of this
+  # release, so a new version is a new supply-chain decision. The runner
+  # installs them from the operator's trusted registries and loads them
+  # for this exact release signature only; removal deletes their
+  # configuration and keys unless explicitly kept.
+  # mcpServers:
+  #   - npm: "@modelcontextprotocol/server-github"
+  #     version: 2026.1.2
+  #     tools: [list_issues]        # optional allowlist within the server
+  #     secrets: [GITHUB_PAT]       # names only; collected by guided setup
+  #     egress: [api.github.com]    # the server's own outbound allowlist
 
 # Informational in v1 (no auto-install): other BriefAgents this one
 # expects to exist.
