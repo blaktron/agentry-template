@@ -3,7 +3,7 @@
 # This file is the whole contract: what the BriefAgent is, where its
 # instructions live, and — most importantly — what it may touch. The
 # registry scans releases against these declarations, clients display and
-# diff them on install, and the SecureAgentry runner ENFORCES them: an
+# diff them on install, and the Agentry runner ENFORCES them: an
 # undeclared capability is a tool your BriefAgent simply does not have.
 #
 # Every option is shown below; commented lines are the alternatives.

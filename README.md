@@ -1,10 +1,10 @@
 # BriefAgent template
 
 The starting point for a **BriefAgent** — a single-purpose AI agent
-packaged for [SecureAgentry](https://secureagentry.net): one manifest that
+packaged for [Agentry](https://secureagentry.net): one manifest that
 declares what the agent is and what it may touch, the instruction content
 itself, and nothing else. No tool code ships in a BriefAgent, ever — at
-run time the SecureAgentry runner serves exactly the tools the manifest
+run time the Agentry runner serves exactly the tools the manifest
 declares through an isolated Docker MCP Gateway, and when installed into
 an existing coding agent (Claude Code, Codex, …) the host's built-in
 tools stand in under the same declared contract.
