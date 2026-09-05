@@ -19,7 +19,7 @@ then gone.
 git clone https://github.com/your-namespace/my-briefagent && cd my-briefagent
 
 # 2. Make it yours: name, namespace, summary, instructions, capabilities.
-$EDITOR agent.yaml SKILL.md
+$EDITOR agent.yaml AGENT.md
 
 # 3. One-time machine setup: LLM provider + the docker MCP gateway.
 agentry setup
@@ -45,7 +45,7 @@ agentry run your-namespace/my-briefagent@^0.1 --input task.json
 ```
 my-briefagent/
 ├── agent.yaml                  # the manifest — identity + security contract (required)
-├── SKILL.md                    # the instructions (kind: skill entrypoint)
+├── AGENT.md                    # the instruction file (entrypoints.instruction)
 ├── README.md                   # rendered on the BriefAgent's registry page
 ├── LICENSE                     # required for public publication (SPDX in agent.yaml)
 ├── output.schema.example.json  # rename to output.schema.json for structured output
@@ -53,15 +53,19 @@ my-briefagent/
 └── .gitignore                  # keeps run outputs out of the source tree
 ```
 
-For `kind: prompt-agent`, replace `SKILL.md` with `AGENT.md` (or
-`PROMPT.md`) at the root. For `kind: mcp-server`, add your server code and
-declare the `mcp` entrypoint instead.
+There is one instruction file, whatever the agent does. A file with Agent
+Skills frontmatter (this template's `AGENT.md` has it) works unchanged —
+the frontmatter is stripped and the body becomes the harness instruction —
+so an existing `SKILL.md` can be named as `entrypoints.instruction: SKILL.md`.
+MCP servers a BriefAgent needs are declared under `capabilities.mcpServers`,
+not packaged as agents of their own.
 
 ## The manifest, option by option
 
 `agent.yaml` is a closed schema: unknown keys are rejected, so a typo
-cannot silently disable a control. `schemaVersion: "1"` is the only
-schema major today.
+cannot silently disable a control. `schemaVersion: "2"` is what you write;
+releases published under `"1"` (the old `kind`-classified manifest) stay
+readable forever, but only a v2 manifest can declare `interactive`.
 
 ### Identity and metadata
 
@@ -69,7 +73,7 @@ schema major today.
 |---|---|---|
 | `name` | yes | lowercase `[a-z0-9-]`, ≤64 chars, starts/ends alphanumeric; unique within the namespace |
 | `namespace` | yes | the publishing handle (yours or your org's), lowercase `[a-z0-9-]`, ≤39 chars |
-| `kind` | yes | `skill` \| `prompt-agent` \| `mcp-server` (see below) |
+| `modes` | yes | the run modes the release supports: `[autonomous]`, `[interactive]`, or both (see below) |
 | `version` | yes | strict semver, no leading `v`; must equal the git tag when publishing from a tag, and exceed every version already on the channel |
 | `summary` | yes | one plain-text line, ≤140 characters — shown everywhere the BriefAgent appears |
 | `license` | for public publish | an SPDX identifier (`MIT`, `Apache-2.0`, …) matching your LICENSE file |
@@ -77,13 +81,34 @@ schema major today.
 | `homepage` | no | informational URL shown on the registry page |
 | `tags` | no | lowercase `[a-z0-9-]` search facets |
 
-### `kind` — what sort of BriefAgent this is
+### `modes` — how the BriefAgent runs
 
-| kind | definition | entrypoint | runnable by `agentry run`? |
-|---|---|---|---|
-| `skill` | an instruction package (Claude-skill-shaped) with optional support files | `entrypoints.skill:` names the skill file (default `SKILL.md`); its frontmatter is stripped and the body becomes the harness instruction | yes |
-| `prompt-agent` | pure instructions, no code entrypoint | none declared — the runner reads `AGENT.md`, else `PROMPT.md`, at the archive root | yes |
-| `mcp-server` | a tool server other BriefAgents can use | `entrypoints.mcp: {command, args[], transport: stdio\|http}` — args naming repo files must appear in `publish.include` | no — it is a tool, not an agent (the runner refuses it with exit 12) |
+| mode | what a run is | status |
+|---|---|---|
+| `autonomous` | starts from its files — after the `intake` questions, if any, and MCP profile authentication — does the job, writes its output and receipts, and ends | `agentry run` today |
+| `interactive` | the same plan and controls, but the run is a conversation: a chat in the terminal (CLI) or an in-app window (desktop). The agent can ask for information as the work reveals the need; you can answer and drop files into the read-only inputs folder. You cannot give it more access than the manifest declares | declarable now; sessions arrive with the runner's session work (agentry-cli#35, #36) — a release declaring only `interactive` cannot be run until then |
+
+### `entrypoints.instruction` — the one instruction file
+
+`AGENT.md` when omitted. Frontmatter is stripped; the body is the harness
+instruction. The file must exist and be matched by `publish.include`.
+
+### `intake` — questions asked before a run
+
+Either mode may ask a few things up front; the runner asks them through
+the same prompter that collects MCP profile secrets and stages the answers
+read-only at `/inputs/intake.json`. Each question has an `id`
+(`[a-z0-9_]{1,64}`, unique), a `prompt`, a `type` (`text` default,
+`secret` — injected as a run-scoped secret, never written as text —,
+`choice` with `choices`, or `file`, a host path the runner stages into the
+inputs folder) and `required`. At most 20. Non-secret answers are receipts.
+
+### `interactive` — session hints
+
+`opening` (≤ 500 characters) is the first message when a session starts
+with no task text; `idleTimeoutSeconds` asks for less than the operator's
+policy allows, never more. Accepted with a warning when `interactive` is
+not among the modes.
 
 ### `runtime` — informational hints
 
@@ -91,8 +116,9 @@ schema major today.
   A hint, never a lock: the **operator's** runner policy decides which
   model actually runs, with an operator-owned API key.
 - `runtime.interfaces` — which `agentry install` targets the package
-  supports: `claude-skill`, `mcp`, `agents-md`. Installing to a target not
-  listed here warns but proceeds.
+  supports: `claude-skill`, `agents-md`. Independent of mode; the first
+  listed one is the default target. Installing to a target not listed
+  here warns but proceeds.
 
 ### `capabilities` — the security contract
 
@@ -270,10 +296,9 @@ agentry install your-namespace/my-briefagent --provider codex     # Codex
 agentry install your-namespace/my-briefagent --provider openclaw  # OpenClaw
 
 # or by explicit target:
-agentry install your-namespace/my-briefagent            # target by kind
+agentry install your-namespace/my-briefagent            # the default target (first runtime.interfaces entry)
 agentry install your-namespace/my-briefagent --target claude-skill
 agentry install your-namespace/my-briefagent --target agents-md
-agentry install your-namespace/my-briefagent --target mcp   # kind: mcp-server
 ```
 
 The `claude-skill` target compiles the capability contract into

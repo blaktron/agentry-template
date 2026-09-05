@@ -1,4 +1,4 @@
-# agent.yaml — the BriefAgent manifest (manifest schema v1).
+# agent.yaml — the BriefAgent manifest (manifest schema v2).
 #
 # This file is the whole contract: what the BriefAgent is, where its
 # instructions live, and — most importantly — what it may touch. The
@@ -10,8 +10,9 @@
 # Full field-by-field documentation: README.md in this template, and
 # https://docs.secureagentry.net.
 
-# The manifest schema major. Only "1" exists today.
-schemaVersion: "1"
+# The manifest schema major. "2" is what you write; releases published
+# under "1" (the old kind-classified manifest) stay readable forever.
+schemaVersion: "2"
 
 # Identity. name is lowercase [a-z0-9-], up to 64 chars; namespace is the
 # publishing handle (yours, or your org's) that owns the BriefAgent.
@@ -19,14 +20,20 @@ schemaVersion: "1"
 name: my-briefagent
 namespace: your-namespace
 
-# What kind of BriefAgent this is (pick exactly one):
-#   skill        — an instruction package (Claude-skill-shaped); the
-#                  entrypoint below names the skill file. Runnable.
-#   prompt-agent — pure instructions, no code entrypoint: put the prompt
-#                  in AGENT.md (or PROMPT.md) at the repo root. Runnable.
-#   mcp-server   — a tool server other BriefAgents can use; declares an
-#                  mcp entrypoint instead. NOT runnable on its own.
-kind: skill
+# The run modes this release supports — one or both:
+#   autonomous  — starts from its files (after the intake questions below,
+#                 if any, and MCP profile authentication), does the job,
+#                 writes its output and receipts, and ends. This is what
+#                 `agentry run` does today.
+#   interactive — the same plan and the same controls, but the run is a
+#                 conversation: a chat in the terminal (CLI) or an in-app
+#                 window (desktop). The agent can ask for information; the
+#                 user can answer and drop files into the read-only inputs
+#                 folder. Nobody can widen the capabilities declared below.
+#                 Declarable now; sessions arrive with the runner's session
+#                 work (agentry-cli#35, #36).
+modes: [autonomous]
+# modes: [autonomous, interactive]
 
 # Strict semver, no leading "v". Must match the git tag when publishing
 # from a tag, and must exceed every version already on the channel.
@@ -49,24 +56,43 @@ homepage: https://github.com/blaktron/agentry-template
 # Optional lowercase [a-z0-9-] tags for search facets.
 tags: [template, example]
 
-# Entrypoints — exactly the keys valid for the kind above.
+# The instruction file. AGENT.md when omitted. A leading YAML frontmatter
+# block (the Agent Skills SKILL.md shape, as in this template) is stripped
+# and the body becomes the harness instruction — so a SKILL.md works
+# unchanged as `instruction: SKILL.md`. Must exist and ship (publish.include).
 entrypoints:
-  # kind: skill — the repo-relative skill file (frontmatter + instructions).
-  skill: SKILL.md
-  # kind: mcp-server — how to launch the server (and nothing else):
-  # mcp:
-  #   command: node          # the executable (node, python, …)
-  #   args: [server.js]      # args naming repo files must be in publish.include
-  #   transport: stdio       # stdio | http
+  instruction: AGENT.md
+
+# Questions asked before a run starts, in either mode. The runner asks
+# them through the same prompter that collects MCP profile secrets and
+# stages the answers read-only for the agent at /inputs/intake.json.
+# Non-secret answers are part of the run's receipts. At most 20.
+# intake:
+#   - id: dataset            # [a-z0-9_]+, unique
+#     prompt: "Path to the dataset to analyse"
+#     type: file             # text (default) | secret | choice | file
+#     required: true
+#   - id: region
+#     prompt: "Which region?"
+#     type: choice
+#     choices: [emea, apac, amer]
+
+# Hints for interactive sessions (only meaningful with `interactive` in
+# modes; accepted with a warning otherwise). Everything else about a
+# session — budgets, idle timeout, wall time — is the operator's runner
+# policy, which a manifest can only tighten.
+# interactive:
+#   opening: "What should I look at?"   # first message when no task text is given; ≤ 500 chars
+#   idleTimeoutSeconds: 900             # policy caps it
 
 # Informational runtime hints.
 runtime:
   # Free-form model hint patterns. A hint, never a lock: the operator's
   # runner policy picks the model that actually runs.
   models: ["claude-*"]
-  # Which `agentry install` targets this package supports:
+  # Which `agentry install` targets this package supports (independent of
+  # mode; the first listed one is the default target):
   #   claude-skill — ~/.claude/skills/<name>/ with SKILL.md frontmatter
-  #   mcp          — extract + merge a server entry into .mcp.json
   #   agents-md    — extract + upsert a section in ./AGENTS.md
   interfaces: [claude-skill, agents-md]
 
@@ -123,5 +149,5 @@ capabilities:
 # (path.Match segments; "**" matches any number of segments). Nothing
 # else is packed. channel is stable (default) or beta.
 publish:
-  include: [agent.yaml, README.md, SKILL.md, LICENSE]
+  include: [agent.yaml, README.md, AGENT.md, LICENSE]
   channel: stable
