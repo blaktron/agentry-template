@@ -55,9 +55,9 @@ my-briefagent/
 ```
 
 There is one instruction file, whatever the agent does. A file with Agent
-Skills frontmatter (this template's `AGENT.md` has it) works unchanged —
-the frontmatter is stripped and the body becomes the harness instruction —
-so an existing `SKILL.md` can be named as `entrypoints.instruction: SKILL.md`.
+Skills frontmatter (this template's `AGENT.md` has it) works unchanged:
+the frontmatter is stripped and the body becomes the harness instruction.
+An existing `SKILL.md` can be named as `entrypoints.instruction: SKILL.md`.
 MCP servers a BriefAgent needs are declared under `capabilities.mcpServers`,
 not packaged as agents of their own.
 
@@ -99,17 +99,18 @@ instruction. The file must exist and be matched by `publish.include`.
 Either mode may ask a few things up front; the runner asks them through
 the same prompter that collects MCP profile secrets and stages the answers
 read-only at `/inputs/intake.json`. Each question has an `id`
-(`[a-z0-9_]{1,64}`, unique), a `prompt`, a `type` (`text` default,
-`secret` — injected as a run-scoped secret, never written as text —,
-`choice` with `choices`, or `file`, a host path the runner stages into the
-inputs folder) and `required`. At most 20. Non-secret answers are receipts.
+(`[a-z0-9_]{1,64}`, unique), a `prompt`, a `type` and `required`. The four
+types are `text` (the default), `secret`, which is injected as a run-scoped
+secret and never written as text, `choice` with its `choices`, and `file`,
+a host path the runner stages into the inputs folder. At most 20.
+Non-secret answers are receipts.
 
 ### `interactive` — session hints
 
 `opening` (≤ 500 characters) is the first message when a session starts
 with no task text; `idleTimeoutSeconds` asks for less than the operator's
-policy allows, never more. Accepted with a warning when `interactive` is
-not among the modes.
+policy allows, never more. Validation warns when `interactive` is not
+among the modes, and accepts the release anyway.
 
 ### `runtime` — informational hints
 
@@ -220,11 +221,11 @@ Informational in v1 — recorded and displayed, not auto-installed.
 ## What your BriefAgent gets at run time
 
 `agentry run` verifies the release (sha256 digest + DSSE attestation —
-the same gate as `agentry install`), compiles manifest + operator policy
-into a deterministic run plan, and executes one container tree: an
-isolated agent container (internal-only network; it can reach exactly the
-MCP gateway and an allowlisted egress proxy for the model API), a
-per-run Docker MCP Gateway, and the companion tools server.
+the same gate as `agentry install`), then compiles manifest + operator
+policy into a deterministic run plan. The plan executes as one container
+tree: an isolated agent container (internal-only network; it can reach
+exactly the MCP gateway and an allowlisted egress proxy for the model
+API), a per-run Docker MCP Gateway, and the companion tools server.
 
 | manifest declaration | tool(s) granted |
 |---|---|
@@ -240,13 +241,13 @@ from the gateway; the workspace is rooted at `/workspace` as seen by
 tools; provided input files are under `/inputs`; report files must be
 written with `write_report`; the final message is the run's result.
 
-**Input files:** hand the run external files with `agentry run --file
+**Input files.** Hand the run external files with `agentry run --file
 PATH` (repeatable; files or directories). They mount read-only at
 `/inputs` on the tool plane — task material like stdin, no manifest
 capability needed. Output and receipts stay on the separate `/out`
 volume.
 
-**Machine setup & MCP profiles:** `agentry setup` configures your
+**Machine setup & MCP profiles.** `agentry setup` configures your
 preferred LLM provider and stands up the docker MCP gateway once. The
 first run of a release that declares `secrets:` starts a guided setup
 that collects each key into the BriefAgent's **MCP profile** (stored per
@@ -255,20 +256,20 @@ completion — configurable at install time with `--keep-profile`, the
 guided question, or the policy default. `agentry profiles list|remove`
 manages stored profiles.
 
-**Structured output:** ship an `output.schema.json` at the archive root
-(and list it in `publish.include`) and the runner embeds the schema in
-the instruction and requires the final message to parse as JSON — exit
-17 otherwise, with the raw output preserved in the receipts. This
+**Structured output.** Ship an `output.schema.json` at the archive root
+and list it in `publish.include`. The runner then embeds the schema in
+the instruction and requires the final message to parse as JSON; anything
+else is exit 17, with the raw output preserved in the receipts. This
 template ships an inert `output.schema.example.json` to start from.
 
-**Task input:** `--input FILE`, else piped stdin, else an empty task.
+**Task input.** `--input FILE`, else piped stdin, else an empty task.
 Runs compose like processes: `agentry run a … | agentry run b …`.
 
-**Budgets:** the operator policy sets defaults (timeout, max tool-call
+**Budgets.** The operator policy sets defaults (timeout, max tool-call
 turns); `--timeout` and `--max-turns` override per run. Exceeding them is
 exit 15 / 16.
 
-**Exit codes:** `0` ok · `10` verify failed · `11` refused by
+**Exit codes.** `0` ok · `10` verify failed · `11` refused by
 policy / missing secret · `12` package not compilable/runnable ·
 `13` gateway or docker environment · `14` the BriefAgent itself failed ·
 `15` timeout · `16` budget · `17` output schema.
