@@ -1,13 +1,14 @@
 # BriefAgent template
 
 The starting point for a **BriefAgent** — a single-purpose AI agent
-packaged for [Agentry](https://secureagentry.net): one manifest that
-declares what the agent is and what it may touch, the instruction content
-itself, and nothing else. No tool code ships in a BriefAgent, ever — at
-run time the Agentry runner serves exactly the tools the manifest
-declares through an isolated Docker MCP Gateway, and when installed into
-an existing coding agent (Claude Code, Codex, …) the host's built-in
-tools stand in under the same declared contract.
+packaged for [Agentry](https://secureagentry.net). A BriefAgent is one
+manifest that declares what the agent is and what it may touch, plus the
+instruction content itself. No tool code ships in a BriefAgent, ever: at
+run time a per-run Docker MCP gateway serves the tools the manifest
+declares, plus the report and input tools every run gets. Installed into
+an existing coding agent (Claude Code, Codex, …) instead, the package
+compiles the same contract into that application's tool grants, and
+enforcement there is the host's.
 
 One agent, one job: task in, result out, reports in an output folder,
 then gone.
@@ -54,9 +55,9 @@ my-briefagent/
 ```
 
 There is one instruction file, whatever the agent does. A file with Agent
-Skills frontmatter (this template's `AGENT.md` has it) works unchanged —
-the frontmatter is stripped and the body becomes the harness instruction —
-so an existing `SKILL.md` can be named as `entrypoints.instruction: SKILL.md`.
+Skills frontmatter (this template's `AGENT.md` has it) works unchanged:
+the frontmatter is stripped and the body becomes the harness instruction.
+An existing `SKILL.md` can be named as `entrypoints.instruction: SKILL.md`.
 MCP servers a BriefAgent needs are declared under `capabilities.mcpServers`,
 not packaged as agents of their own.
 
@@ -71,7 +72,7 @@ readable forever, but only a v2 manifest can declare `interactive`.
 
 | Field | Required | Rules |
 |---|---|---|
-| `name` | yes | lowercase `[a-z0-9-]`, ≤64 chars, starts/ends alphanumeric; unique within the namespace |
+| `name` | yes | lowercase `[a-z0-9-]`, ≤65 chars, starts/ends alphanumeric; unique within the namespace |
 | `namespace` | yes | the publishing handle (yours or your org's), lowercase `[a-z0-9-]`, ≤39 chars |
 | `modes` | yes | the run modes the release supports: `[autonomous]`, `[interactive]`, or both (see below) |
 | `version` | yes | strict semver, no leading `v`; must equal the git tag when publishing from a tag, and exceed every version already on the channel |
@@ -86,7 +87,7 @@ readable forever, but only a v2 manifest can declare `interactive`.
 | mode | what a run is | status |
 |---|---|---|
 | `autonomous` | starts from its files — after the `intake` questions, if any, and MCP profile authentication — does the job, writes its output and receipts, and ends | `agentry run` today |
-| `interactive` | the same plan and controls, but the run is a conversation: a chat in the terminal (CLI) or an in-app window (desktop). The agent can ask for information as the work reveals the need; you can answer and drop files into the read-only inputs folder. You cannot give it more access than the manifest declares | declarable now; sessions arrive with the runner's session work (agentry-cli#35, #36) — a release declaring only `interactive` cannot be run until then |
+| `interactive` | the same plan and controls, but the run is a conversation: a chat in the terminal (CLI) or an in-app window (desktop). The agent can ask for information as the work reveals the need; you can answer and drop files into the read-only inputs folder. You cannot give it more access than the manifest declares | `interactive` runs today (agentry-cli#35, #36); the chat needs a terminal on stdin, so a piped task and JSON output are not accepted |
 
 ### `entrypoints.instruction` — the one instruction file
 
@@ -98,17 +99,18 @@ instruction. The file must exist and be matched by `publish.include`.
 Either mode may ask a few things up front; the runner asks them through
 the same prompter that collects MCP profile secrets and stages the answers
 read-only at `/inputs/intake.json`. Each question has an `id`
-(`[a-z0-9_]{1,64}`, unique), a `prompt`, a `type` (`text` default,
-`secret` — injected as a run-scoped secret, never written as text —,
-`choice` with `choices`, or `file`, a host path the runner stages into the
-inputs folder) and `required`. At most 20. Non-secret answers are receipts.
+(`[a-z0-9_]{1,64}`, unique), a `prompt`, a `type` and `required`. The four
+types are `text` (the default); `secret`, injected as a run-scoped secret
+and never written as text; `choice` with its `choices`; and `file`, a host
+path the runner stages into the inputs folder. At most 20. Non-secret
+answers are receipts.
 
 ### `interactive` — session hints
 
 `opening` (≤ 500 characters) is the first message when a session starts
 with no task text; `idleTimeoutSeconds` asks for less than the operator's
-policy allows, never more. Accepted with a warning when `interactive` is
-not among the modes.
+policy allows, never more. Validation warns when `interactive` is not
+among the modes, and accepts the release anyway.
 
 ### `runtime` — informational hints
 
@@ -122,8 +124,8 @@ not among the modes.
 
 ### `capabilities` — the security contract
 
-The heart of the manifest. Closed vocabulary; omitted or empty means a
-**pure-text BriefAgent** (its only run-time tool is `write_report`).
+Closed vocabulary; omitted or empty means a **pure-text BriefAgent**,
+whose only tools are `write_report` and the input readers every run gets.
 Declared capabilities are what the registry scans against
 (declared-vs-detected), what installs prompt on (egress/exec need typed
 consent; widened contracts re-ask on upgrade), and what the runner turns
@@ -158,13 +160,14 @@ enforceable.
 
 #### `capabilities.secrets`
 
-A list of environment variable **names** — never values. At run time the
-operator's secret source (host env or a dotenv file, per their policy)
-must resolve every name or the run refuses to start (exit 11, naming the
-variable). Values are injected only into the tools container; the `fetch`
-tool can send one as an auth header (`auth: {env: NAME}`) without the
-value ever entering model context, and values never appear in plans,
-receipts, or process listings.
+A list of environment variable **names** — never values. At run time
+every name must resolve: the runner looks in the BriefAgent's MCP profile
+first, then the operator's secret source (host env or a dotenv file, per
+their policy). A name that resolves nowhere stops the run before it
+starts (exit 11, naming the variable). Values are injected only into the
+tools container; the `fetch` tool can send one as an auth header
+(`auth: {env: NAME}`) without the value ever entering model context, and
+values never appear in plans, receipts, or process listings.
 
 #### `capabilities.dataAccess`
 
@@ -188,13 +191,13 @@ capabilities:
       egress: [api.github.com]  # the server's own outbound allowlist
 ```
 
-Installing the agent installs the servers from the operator's trusted
-registries (npm/PyPI by default), pins the resolved artifacts, and
-configures the gateway to load them for **this exact release only** — a
-new version starts the trust decision over, and removal deletes the
-configuration and keys unless the operator explicitly keeps them. Server
-`secrets` are collected once into the release's MCP profile by the guided
-setup, exactly like agent-level secrets.
+The release's first run installs the servers from the registries the
+operator's policy names (npm and PyPI by default), pins the resolved
+artifacts, and configures the gateway to load them for **this exact
+release only**. A new version starts the trust decision over, and removal
+deletes the configuration and keys unless the operator explicitly keeps
+them. Server `secrets` are collected once into the release's MCP profile
+by the guided setup, exactly like agent-level secrets.
 
 ### `dependencies`
 
@@ -218,11 +221,11 @@ Informational in v1 — recorded and displayed, not auto-installed.
 ## What your BriefAgent gets at run time
 
 `agentry run` verifies the release (sha256 digest + DSSE attestation —
-the same gate as `agentry install`), compiles manifest + operator policy
-into a deterministic run plan, and executes one container tree: an
-isolated agent container (internal-only network; it can reach exactly the
-MCP gateway and an allowlisted egress proxy for the model API), a
-per-run Docker MCP Gateway, and the companion tools server.
+the same gate as `agentry install`), then compiles manifest + operator
+policy into a deterministic run plan. The runner then executes one
+container tree: an isolated agent container (internal-only network; it
+can reach exactly the MCP gateway and an allowlisted egress proxy for the
+model API), a per-run Docker MCP gateway, and the companion tools server.
 
 | manifest declaration | tool(s) granted |
 |---|---|
@@ -238,14 +241,14 @@ from the gateway; the workspace is rooted at `/workspace` as seen by
 tools; provided input files are under `/inputs`; report files must be
 written with `write_report`; the final message is the run's result.
 
-**Input files:** hand the run external files with `agentry run --file
+**Input files.** Hand the run external files with `agentry run --file
 PATH` (repeatable; files or directories). They mount read-only at
 `/inputs` on the tool plane — task material like stdin, no manifest
 capability needed. Output and receipts stay on the separate `/out`
 volume.
 
-**Machine setup & MCP profiles:** `agentry setup` configures your
-preferred LLM provider and stands up the docker MCP gateway once. The
+**Machine setup & MCP profiles.** `agentry setup` configures your
+preferred LLM provider and stands up the Docker MCP gateway once. The
 first run of a release that declares `secrets:` starts a guided setup
 that collects each key into the BriefAgent's **MCP profile** (stored per
 exact release signature); keep it for future runs or remove it on
@@ -253,20 +256,20 @@ completion — configurable at install time with `--keep-profile`, the
 guided question, or the policy default. `agentry profiles list|remove`
 manages stored profiles.
 
-**Structured output:** ship an `output.schema.json` at the archive root
-(and list it in `publish.include`) and the runner embeds the schema in
-the instruction and requires the final message to parse as JSON — exit
-17 otherwise, with the raw output preserved in the receipts. This
+**Structured output.** Ship an `output.schema.json` at the archive root
+and list it in `publish.include`. The runner then embeds the schema in
+the instruction and requires the final message to parse as JSON; anything
+else is exit 17, with the raw output preserved in the receipts. This
 template ships an inert `output.schema.example.json` to start from.
 
-**Task input:** `--input FILE`, else piped stdin, else an empty task.
+**Task input.** `--input FILE`, else piped stdin, else an empty task.
 Runs compose like processes: `agentry run a … | agentry run b …`.
 
-**Budgets:** the operator policy sets defaults (timeout, max tool-call
+**Budgets.** The operator policy sets defaults (timeout, max tool-call
 turns); `--timeout` and `--max-turns` override per run. Exceeding them is
 exit 15 / 16.
 
-**Exit codes:** `0` ok · `10` verify failed · `11` refused by
+**Exit codes.** `0` ok · `10` verify failed · `11` refused by
 policy / missing secret · `12` package not compilable/runnable ·
 `13` gateway or docker environment · `14` the BriefAgent itself failed ·
 `15` timeout · `16` budget · `17` output schema.
@@ -302,11 +305,13 @@ agentry install your-namespace/my-briefagent --target agents-md
 ```
 
 The `claude-skill` target compiles the capability contract into
-spec-conformant `allowed-tools` frontmatter (`Read`/`Grep`/`Glob` ⇐
-filesystem.read, `Write`/`Edit` ⇐ filesystem.write, `Bash(cmd:*)` ⇐ exec
-commands, `WebFetch(domain:host)` ⇐ egress hosts); the `agents-md` target
-records the same contract as a Tools note. Enforcement in embedded mode
-is the host's.
+`allowed-tools` frontmatter (`Read`/`Grep`/`Glob` ⇐ filesystem.read,
+`Write`/`Edit` ⇐ filesystem.write, `Bash(cmd:*)` ⇐ exec commands,
+`WebFetch(domain:host)` ⇐ egress hosts); the `agents-md` target
+records the same contract as a Tools note. An allowed-tools line you
+wrote yourself wins: the exporter narrows nothing it did not write.
+Frontmatter without one gets the key inserted. Enforcement in embedded
+mode is the host's.
 
 ## Publishing
 
