@@ -4,10 +4,10 @@ The starting point for a **BriefAgent** — a single-purpose AI agent
 packaged for [Agentry](https://secureagentry.net). A BriefAgent is one
 manifest that declares what the agent is and what it may touch, plus the
 instruction content itself. No tool code ships in a BriefAgent, ever: at
-run time a per-run Docker MCP Gateway serves the tools the manifest
+run time a per-run Docker MCP gateway serves the tools the manifest
 declares, plus the report and input tools every run gets. Installed into
 an existing coding agent (Claude Code, Codex, …) instead, the package
-compiles the same contract into that application's tool allowlist, and
+compiles the same contract into that application's tool grants, and
 enforcement there is the host's.
 
 One agent, one job: task in, result out, reports in an output folder,
@@ -100,10 +100,10 @@ Either mode may ask a few things up front; the runner asks them through
 the same prompter that collects MCP profile secrets and stages the answers
 read-only at `/inputs/intake.json`. Each question has an `id`
 (`[a-z0-9_]{1,64}`, unique), a `prompt`, a `type` and `required`. The four
-types are `text` (the default), `secret`, which is injected as a run-scoped
-secret and never written as text, `choice` with its `choices`, and `file`,
-a host path the runner stages into the inputs folder. At most 20.
-Non-secret answers are receipts.
+types are `text` (the default); `secret`, injected as a run-scoped secret
+and never written as text; `choice` with its `choices`; and `file`, a host
+path the runner stages into the inputs folder. At most 20. Non-secret
+answers are receipts.
 
 ### `interactive` — session hints
 
@@ -161,13 +161,13 @@ enforceable.
 #### `capabilities.secrets`
 
 A list of environment variable **names** — never values. At run time
-every name must resolve, from the BriefAgent's MCP profile or the
-operator's secret source (host env or a dotenv file, per their policy),
-or the run refuses to start (exit 11, naming the variable). Values are
-injected only into the tools container; the `fetch` tool can send one as
-an auth header (`auth: {env: NAME}`) without the value ever entering
-model context, and values never appear in plans, receipts, or process
-listings.
+every name must resolve: the runner looks in the BriefAgent's MCP profile
+first, then the operator's secret source (host env or a dotenv file, per
+their policy). A name that resolves nowhere stops the run before it
+starts (exit 11, naming the variable). Values are injected only into the
+tools container; the `fetch` tool can send one as an auth header
+(`auth: {env: NAME}`) without the value ever entering model context, and
+values never appear in plans, receipts, or process listings.
 
 #### `capabilities.dataAccess`
 
@@ -222,10 +222,10 @@ Informational in v1 — recorded and displayed, not auto-installed.
 
 `agentry run` verifies the release (sha256 digest + DSSE attestation —
 the same gate as `agentry install`), then compiles manifest + operator
-policy into a deterministic run plan. The plan executes as one container
-tree: an isolated agent container (internal-only network; it can reach
-exactly the MCP gateway and an allowlisted egress proxy for the model
-API), a per-run Docker MCP Gateway, and the companion tools server.
+policy into a deterministic run plan. The runner then executes one
+container tree: an isolated agent container (internal-only network; it
+can reach exactly the MCP gateway and an allowlisted egress proxy for the
+model API), a per-run Docker MCP gateway, and the companion tools server.
 
 | manifest declaration | tool(s) granted |
 |---|---|
@@ -248,7 +248,7 @@ capability needed. Output and receipts stay on the separate `/out`
 volume.
 
 **Machine setup & MCP profiles.** `agentry setup` configures your
-preferred LLM provider and stands up the docker MCP gateway once. The
+preferred LLM provider and stands up the Docker MCP gateway once. The
 first run of a release that declares `secrets:` starts a guided setup
 that collects each key into the BriefAgent's **MCP profile** (stored per
 exact release signature); keep it for future runs or remove it on
@@ -308,9 +308,10 @@ The `claude-skill` target compiles the capability contract into
 `allowed-tools` frontmatter (`Read`/`Grep`/`Glob` ⇐ filesystem.read,
 `Write`/`Edit` ⇐ filesystem.write, `Bash(cmd:*)` ⇐ exec commands,
 `WebFetch(domain:host)` ⇐ egress hosts); the `agents-md` target
-records the same contract as a Tools note. Frontmatter you wrote yourself
-wins: the exporter narrows nothing it did not write. Enforcement in
-embedded mode is the host's.
+records the same contract as a Tools note. An allowed-tools line you
+wrote yourself wins: the exporter narrows nothing it did not write.
+Frontmatter without one gets the key inserted. Enforcement in embedded
+mode is the host's.
 
 ## Publishing
 
