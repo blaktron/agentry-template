@@ -1,13 +1,14 @@
 # BriefAgent template
 
 The starting point for a **BriefAgent** — a single-purpose AI agent
-packaged for [Agentry](https://secureagentry.net): one manifest that
-declares what the agent is and what it may touch, the instruction content
-itself, and nothing else. No tool code ships in a BriefAgent, ever — at
-run time the Agentry runner serves exactly the tools the manifest
-declares through an isolated Docker MCP Gateway, and when installed into
-an existing coding agent (Claude Code, Codex, …) the host's built-in
-tools stand in under the same declared contract.
+packaged for [Agentry](https://secureagentry.net). A BriefAgent is one
+manifest that declares what the agent is and what it may touch, plus the
+instruction content itself. No tool code ships in a BriefAgent, ever: at
+run time a per-run Docker MCP Gateway serves the tools the manifest
+declares, plus the report and input tools every run gets. Installed into
+an existing coding agent (Claude Code, Codex, …) instead, the package
+compiles the same contract into that application's tool allowlist, and
+enforcement there is the host's.
 
 One agent, one job: task in, result out, reports in an output folder,
 then gone.
@@ -122,8 +123,8 @@ not among the modes.
 
 ### `capabilities` — the security contract
 
-The heart of the manifest. Closed vocabulary; omitted or empty means a
-**pure-text BriefAgent** (its only run-time tool is `write_report`).
+Closed vocabulary; omitted or empty means a **pure-text BriefAgent**,
+whose only tools are `write_report` and the input readers every run gets.
 Declared capabilities are what the registry scans against
 (declared-vs-detected), what installs prompt on (egress/exec need typed
 consent; widened contracts re-ask on upgrade), and what the runner turns
@@ -158,13 +159,14 @@ enforceable.
 
 #### `capabilities.secrets`
 
-A list of environment variable **names** — never values. At run time the
-operator's secret source (host env or a dotenv file, per their policy)
-must resolve every name or the run refuses to start (exit 11, naming the
-variable). Values are injected only into the tools container; the `fetch`
-tool can send one as an auth header (`auth: {env: NAME}`) without the
-value ever entering model context, and values never appear in plans,
-receipts, or process listings.
+A list of environment variable **names** — never values. At run time
+every name must resolve, from the BriefAgent's MCP profile or the
+operator's secret source (host env or a dotenv file, per their policy),
+or the run refuses to start (exit 11, naming the variable). Values are
+injected only into the tools container; the `fetch` tool can send one as
+an auth header (`auth: {env: NAME}`) without the value ever entering
+model context, and values never appear in plans, receipts, or process
+listings.
 
 #### `capabilities.dataAccess`
 
@@ -188,13 +190,13 @@ capabilities:
       egress: [api.github.com]  # the server's own outbound allowlist
 ```
 
-Installing the agent installs the servers from the operator's trusted
-registries (npm/PyPI by default), pins the resolved artifacts, and
-configures the gateway to load them for **this exact release only** — a
-new version starts the trust decision over, and removal deletes the
-configuration and keys unless the operator explicitly keeps them. Server
-`secrets` are collected once into the release's MCP profile by the guided
-setup, exactly like agent-level secrets.
+The release's first run installs the servers from the registries the
+operator's policy names (npm and PyPI by default), pins the resolved
+artifacts, and configures the gateway to load them for **this exact
+release only**. A new version starts the trust decision over, and removal
+deletes the configuration and keys unless the operator explicitly keeps
+them. Server `secrets` are collected once into the release's MCP profile
+by the guided setup, exactly like agent-level secrets.
 
 ### `dependencies`
 
@@ -302,11 +304,12 @@ agentry install your-namespace/my-briefagent --target agents-md
 ```
 
 The `claude-skill` target compiles the capability contract into
-spec-conformant `allowed-tools` frontmatter (`Read`/`Grep`/`Glob` ⇐
-filesystem.read, `Write`/`Edit` ⇐ filesystem.write, `Bash(cmd:*)` ⇐ exec
-commands, `WebFetch(domain:host)` ⇐ egress hosts); the `agents-md` target
-records the same contract as a Tools note. Enforcement in embedded mode
-is the host's.
+`allowed-tools` frontmatter (`Read`/`Grep`/`Glob` ⇐ filesystem.read,
+`Write`/`Edit` ⇐ filesystem.write, `Bash(cmd:*)` ⇐ exec commands,
+`WebFetch(domain:host)` ⇐ egress hosts); the `agents-md` target
+records the same contract as a Tools note. Frontmatter you wrote yourself
+wins: the exporter narrows nothing it did not write. Enforcement in
+embedded mode is the host's.
 
 ## Publishing
 
