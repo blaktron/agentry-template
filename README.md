@@ -72,7 +72,7 @@ readable forever, but only a v2 manifest can declare `interactive`.
 
 | Field | Required | Rules |
 |---|---|---|
-| `name` | yes | lowercase `[a-z0-9-]`, ≤64 chars, starts/ends alphanumeric; unique within the namespace |
+| `name` | yes | lowercase `[a-z0-9-]`, ≤65 chars, starts/ends alphanumeric; unique within the namespace |
 | `namespace` | yes | the publishing handle (yours or your org's), lowercase `[a-z0-9-]`, ≤39 chars |
 | `modes` | yes | the run modes the release supports: `[autonomous]`, `[interactive]`, or both (see below) |
 | `version` | yes | strict semver, no leading `v`; must equal the git tag when publishing from a tag, and exceed every version already on the channel |
@@ -87,7 +87,7 @@ readable forever, but only a v2 manifest can declare `interactive`.
 | mode | what a run is | status |
 |---|---|---|
 | `autonomous` | starts from its files — after the `intake` questions, if any, and MCP profile authentication — does the job, writes its output and receipts, and ends | `agentry run` today |
-| `interactive` | the same plan and controls, but the run is a conversation: a chat in the terminal (CLI) or an in-app window (desktop). The agent can ask for information as the work reveals the need; you can answer and drop files into the read-only inputs folder. You cannot give it more access than the manifest declares | declarable now; sessions arrive with the runner's session work (agentry-cli#35, #36) — a release declaring only `interactive` cannot be run until then |
+| `interactive` | the same plan and controls, but the run is a conversation: a chat in the terminal (CLI) or an in-app window (desktop). The agent can ask for information as the work reveals the need; you can answer and drop files into the read-only inputs folder. You cannot give it more access than the manifest declares | `interactive` runs today (agentry-cli#35, #36); the chat needs a terminal on stdin, so a piped task and JSON output are not accepted |
 
 ### `entrypoints.instruction` — the one instruction file
 
