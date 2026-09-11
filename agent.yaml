@@ -132,10 +132,13 @@ capabilities:
   # for this exact release signature only; removal deletes their
   # configuration and keys unless explicitly kept.
   # mcpServers:
-  #   - npm: "@modelcontextprotocol/server-github"
-  #     version: 2026.1.2
-  #     tools: [list_issues]        # optional allowlist within the server
-  #     secrets: [GITHUB_PAT]       # names only; collected by guided setup
+  #   - npm: github-mcp-server-js   # the package; or `pypi: name`
+  #     version: 0.1.7              # exact — ranges are rejected
+  #     tools: [list_issues, get_issue]   # optional allowlist; omit for all
+  #     secrets: [GITHUB_TOKEN]     # env-var NAMES the server reads; the
+  #                                 # guided setup collects the values
+  #     env:                        # plain configuration, never a secret;
+  #       GITHUB_PERMISSION: read-only   # visible in the diff and the review
   #     egress: [api.github.com]    # the server's own outbound allowlist
 
 # Informational in v1 (no auto-install): other BriefAgents this one

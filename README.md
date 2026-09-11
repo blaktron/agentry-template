@@ -184,11 +184,13 @@ The MCP servers your BriefAgent requires, declared explicitly and
 ```yaml
 capabilities:
   mcpServers:
-    - npm: "@modelcontextprotocol/server-github"   # or `pypi: package-name`
-      version: 2026.1.2       # exact version — ranges are rejected
-      tools: [list_issues]    # optional: only these tools are granted
-      secrets: [GITHUB_PAT]   # env-var NAMES the server needs, never values
-      egress: [api.github.com]  # the server's own outbound allowlist
+    - npm: github-mcp-server-js   # or `pypi: package-name`
+      version: 0.1.7              # exact version — ranges are rejected
+      tools: [list_issues, get_issue]   # optional: only these tools are granted
+      secrets: [GITHUB_TOKEN]     # env-var NAMES the server needs, never values
+      env:                        # plain configuration the server reads
+        GITHUB_PERMISSION: read-only
+      egress: [api.github.com]    # the server's own outbound allowlist
 ```
 
 The release's first run installs the servers from the registries the
@@ -197,7 +199,12 @@ artifacts, and configures the gateway to load them for **this exact
 release only**. A new version starts the trust decision over, and removal
 deletes the configuration and keys unless the operator explicitly keeps
 them. Server `secrets` are collected once into the release's MCP profile
-by the guided setup, exactly like agent-level secrets.
+by the guided setup, exactly like agent-level secrets. `env` is the
+server's plain configuration — a mode switch, a directory — written in
+the manifest so it is in the release diff and the review: at most 16
+entries, single-line values, and never a name that is also a secret (the
+validator refuses that). The registry validates and shows `env` today; the
+runner release that passes it to the server is tracked in agentry-cli#99.
 
 ### `dependencies`
 
