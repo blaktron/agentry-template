@@ -203,8 +203,8 @@ by the guided setup, exactly like agent-level secrets. `env` is the
 server's plain configuration — a mode switch, a directory — written in
 the manifest so it is in the release diff and the review: at most 16
 entries, single-line values, and never a name that is also a secret (the
-validator refuses that). The registry validates and shows `env` today; the
-runner release that passes it to the server is tracked in agentry-cli#99.
+validator refuses that). The registry validates and shows `env`, and the
+runner passes it to the server's process when it launches it.
 
 ### `dependencies`
 
@@ -259,7 +259,7 @@ preferred LLM provider and stands up the Docker MCP gateway once. The
 first run of a release that declares `secrets:` starts a guided setup
 that collects each key into the BriefAgent's **MCP profile** (stored per
 exact release signature); keep it for future runs or remove it on
-completion — configurable at install time with `--keep-profile`, the
+completion — configurable at run time with `--keep-profile`, the
 guided question, or the policy default. `agentry profiles list|remove`
 manages stored profiles.
 

@@ -14,7 +14,7 @@
 # under "1" (the old kind-classified manifest) stay readable forever.
 schemaVersion: "2"
 
-# Identity. name is lowercase [a-z0-9-], up to 64 chars; namespace is the
+# Identity. name is lowercase [a-z0-9-], up to 65 chars; namespace is the
 # publishing handle (yours, or your org's) that owns the BriefAgent.
 # Rename both — these are placeholders.
 name: my-briefagent
@@ -30,8 +30,8 @@ namespace: your-namespace
 #                 window (desktop). The agent can ask for information; the
 #                 user can answer and drop files into the read-only inputs
 #                 folder. Nobody can widen the capabilities declared below.
-#                 Declarable now; sessions arrive with the runner's session
-#                 work (agentry-cli#35, #36).
+#                 The CLI (`agentry run --mode interactive`) and the desktop
+#                 app both run sessions today.
 modes: [autonomous]
 # modes: [autonomous, interactive]
 
@@ -97,8 +97,9 @@ runtime:
   interfaces: [claude-skill, agents-md]
 
 # ── The security contract ──────────────────────────────────────────────
-# Closed vocabulary. Empty/omitted = a pure-text BriefAgent (only the
-# write_report tool at run time). Declare the LEAST you need: reviewers
+# Closed vocabulary. Empty/omitted = a pure-text BriefAgent (write_report
+# and the read-only list_inputs/read_input tools at run time, nothing
+# else). Declare the LEAST you need: reviewers
 # gate on this, installs prompt on it, and the runner enforces it.
 capabilities:
   network:
