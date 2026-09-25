@@ -105,6 +105,30 @@ and never written as text; `choice` with its `choices`; and `file`, a host
 path the runner stages into the inputs folder. At most 20. Non-secret
 answers are receipts.
 
+### `guide` — what a person reads before a run
+
+Optional. The author's own words for the run setup on the site and the
+desktop, and for `agentry run` on a terminal. They are shown to people
+only: the guide never reaches the agent's context, the run plan, the
+capability diff or the consent text, so changing only the guide asks
+nobody to consent again. Without it, the setup shows `summary` and a
+"What to have ready" list derived from `intake` and `capabilities`.
+
+| part | where it shows | limit |
+|---|---|---|
+| `overview` | *Before you start*, in place of the summary, and before the questions on a terminal. Markdown: raw HTML is not shown, images are not loaded, and links open in the browser only when they are `http:` or `https:` | 4096 bytes |
+| `prepare` | *Before you start*, as "What to have ready", in place of the derived list | 10 items of 200 characters |
+| `files` | *Files*, above the file picker | 500 characters |
+| `task` | the task field's placeholder, on *Details* | 200 characters |
+| `connect` | *Connect tools*, under each key's field, and beside each key's prompt on a terminal. Keyed by a secret name the release declares (`capabilities.secrets` or an MCP server's `secrets`); any other name fails validation | 300 characters each |
+
+Every part except `overview` is one line of plain text: no control or
+format characters (zero-width, bidirectional overrides). `overview` may
+span lines but carries no NUL, C1 control or format character either. The
+block is in schema v2. A CLI or desktop older than the one that added it
+refuses a manifest that carries it, which is why the template ships it
+commented out.
+
 ### `interactive` — session hints
 
 `opening` (≤ 500 characters) is the first message when a session starts
