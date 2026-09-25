@@ -77,6 +77,27 @@ entrypoints:
 #     type: choice
 #     choices: [emea, apac, amer]
 
+# What a person reads before a run, in the site's and the desktop's run
+# setup and on a terminal's `agentry run`. Shown to people only: it never
+# reaches the agent, the run plan, the capability diff or the consent, and
+# a change to it alone asks nobody to consent again. Every part is
+# optional; without it the setup shows the summary and a list it derives
+# from intake and capabilities. Needs a client that knows the block (an
+# older CLI or desktop refuses a manifest that carries it).
+# guide:
+#   overview: |           # markdown, ≤ 4096 bytes: what it does and returns.
+#     Reads the task and the workspace and writes a short **report**:
+#     what it found, what it could not check, and what to do next.
+#   prepare:              # ≤ 10 items, ≤ 200 chars each: what to gather first
+#     - The files the task is about
+#     - A sentence saying what you want the report to cover
+#   files: "The documents to report on, as text or Markdown."  # ≤ 500 chars
+#   task: "e.g. summarise the open questions in the design notes"  # the task field's placeholder, ≤ 200 chars
+#   connect:              # help per declared secret NAME, ≤ 300 chars each;
+#                         # each key must be in capabilities.secrets or an
+#                         # MCP server's secrets
+#     MY_API_TOKEN: "Create a read-only token at https://example.com/settings/tokens"
+
 # Hints for interactive sessions (only meaningful with `interactive` in
 # modes; accepted with a warning otherwise). Everything else about a
 # session — budgets, idle timeout, wall time — is the operator's runner
