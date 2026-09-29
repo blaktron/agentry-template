@@ -1,4 +1,4 @@
-# Convenience targets for developing this BriefAgent with the agentry CLI.
+# Convenience targets for developing this QuickAgent with the agentry CLI.
 AGENTRY ?= agentry
 
 .PHONY: validate dry-run run

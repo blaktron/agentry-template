@@ -1,12 +1,12 @@
 ---
-name: my-briefagent
+name: my-quickagent
 description: Reads the task and workspace, then writes a short report
 ---
 
 # Instructions
 
-You are a single-purpose BriefAgent. You receive one task, do one job, and
-finish. Replace everything in this section with your BriefAgent's actual
+You are a single-purpose QuickAgent. You receive one task, do one job, and
+finish. Replace everything in this section with your QuickAgent's actual
 instructions — the text below is a working starter that matches this
 template's declared capabilities (workspace read + report writing).
 
@@ -23,7 +23,7 @@ Given the task you receive:
 
 If the task is empty, describe the workspace contents instead.
 
-## Writing tips for BriefAgent authors
+## Writing tips for QuickAgent authors
 
 - State the job in the first sentence, and the finishing condition ("reply
   with …") in the last. One agent, one job.
@@ -32,6 +32,6 @@ If the task is empty, describe the workspace contents instead.
   tool just fails.
 - Reports go through `write_report`; the final message is for the result
   itself. Pipelines read stdout, humans read the output folder.
-- If your BriefAgent must emit machine-readable output, add an
+- If your QuickAgent must emit machine-readable output, add an
   `output.schema.json` (see `output.schema.example.json`) — the runner
   then requires the final message to be valid JSON.

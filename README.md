@@ -1,9 +1,9 @@
-# BriefAgent template
+# QuickAgent template
 
-The starting point for a **BriefAgent** — a single-purpose AI agent
-packaged for [Agentry](https://secureagentry.net). A BriefAgent is one
+The starting point for a **QuickAgent** — a single-purpose AI agent
+packaged for [Agentry](https://secureagentry.net). A QuickAgent is one
 manifest that declares what the agent is and what it may touch, plus the
-instruction content itself. No tool code ships in a BriefAgent, ever: at
+instruction content itself. No tool code ships in a QuickAgent, ever: at
 run time a per-run Docker MCP gateway serves the tools the manifest
 declares, plus the report and input tools every run gets. Installed into
 an existing coding agent (Claude Code, Codex, …) instead, the package
@@ -17,7 +17,7 @@ then gone.
 
 ```bash
 # 1. Start from this template (GitHub: "Use this template"), then:
-git clone https://github.com/your-namespace/my-briefagent && cd my-briefagent
+git clone https://github.com/your-namespace/my-quickagent && cd my-quickagent
 
 # 2. Make it yours: name, namespace, summary, instructions, capabilities.
 $EDITOR agent.yaml AGENT.md
@@ -36,7 +36,7 @@ echo "your task here" | agentry run --local . --allow-unsigned --yes --out ./age
 
 # 7. Publish to the registry (scanned, signed, immutable), then anyone runs:
 agentry publish
-agentry run your-namespace/my-briefagent@^0.1 --input task.json
+agentry run your-namespace/my-quickagent@^0.1 --input task.json
 ```
 
 `make validate`, `make dry-run`, and `make run` wrap steps 4–6.
@@ -44,10 +44,10 @@ agentry run your-namespace/my-briefagent@^0.1 --input task.json
 ## Repository layout
 
 ```
-my-briefagent/
+my-quickagent/
 ├── agent.yaml                  # the manifest — identity + security contract (required)
 ├── AGENT.md                    # the instruction file (entrypoints.instruction)
-├── README.md                   # rendered on the BriefAgent's registry page
+├── README.md                   # rendered on the QuickAgent's registry page
 ├── LICENSE                     # required for public publication (SPDX in agent.yaml)
 ├── output.schema.example.json  # rename to output.schema.json for structured output
 ├── Makefile                    # validate / dry-run / run convenience targets
@@ -58,7 +58,7 @@ There is one instruction file, whatever the agent does. A file with Agent
 Skills frontmatter (this template's `AGENT.md` has it) works unchanged:
 the frontmatter is stripped and the body becomes the harness instruction.
 An existing `SKILL.md` can be named as `entrypoints.instruction: SKILL.md`.
-MCP servers a BriefAgent needs are declared under `capabilities.mcpServers`,
+MCP servers a QuickAgent needs are declared under `capabilities.mcpServers`,
 not packaged as agents of their own.
 
 ## The manifest, option by option
@@ -76,13 +76,13 @@ readable forever, but only a v2 manifest can declare `interactive`.
 | `namespace` | yes | the publishing handle (yours or your org's), lowercase `[a-z0-9-]`, ≤39 chars |
 | `modes` | yes | the run modes the release supports: `[autonomous]`, `[interactive]`, or both (see below) |
 | `version` | yes | strict semver, no leading `v`; must equal the git tag when publishing from a tag, and exceed every version already on the channel |
-| `summary` | yes | one plain-text line, ≤140 characters — shown everywhere the BriefAgent appears |
+| `summary` | yes | one plain-text line, ≤140 characters — shown everywhere the QuickAgent appears |
 | `license` | for public publish | an SPDX identifier (`MIT`, `Apache-2.0`, …) matching your LICENSE file |
 | `authors` | no | list of `{name, email?}` credits |
 | `homepage` | no | informational URL shown on the registry page |
 | `tags` | no | lowercase `[a-z0-9-]` search facets |
 
-### `modes` — how the BriefAgent runs
+### `modes` — how the QuickAgent runs
 
 | mode | what a run is | status |
 |---|---|---|
@@ -148,7 +148,7 @@ among the modes, and accepts the release anyway.
 
 ### `capabilities` — the security contract
 
-Closed vocabulary; omitted or empty means a **pure-text BriefAgent**,
+Closed vocabulary; omitted or empty means a **pure-text QuickAgent**,
 whose only tools are `write_report` and the input readers every run gets.
 Declared capabilities are what the registry scans against
 (declared-vs-detected), what installs prompt on (egress/exec need typed
@@ -185,7 +185,7 @@ enforceable.
 #### `capabilities.secrets`
 
 A list of environment variable **names** — never values. At run time
-every name must resolve: the runner looks in the BriefAgent's MCP profile
+every name must resolve: the runner looks in the QuickAgent's MCP profile
 first, then the operator's secret source (host env or a dotenv file, per
 their policy). A name that resolves nowhere stops the run before it
 starts (exit 11, naming the variable). Values are injected only into the
@@ -195,14 +195,14 @@ values never appear in plans, receipts, or process listings.
 
 #### `capabilities.dataAccess`
 
-Semantic categories the BriefAgent touches, for review and audit:
+Semantic categories the QuickAgent touches, for review and audit:
 `email`, `calendar`, `files`, `tickets`, `code`, `messages`, `payments`,
 `other`. Operators may catalog extra MCP servers per category in their
 runner policy; categories you did not declare are never wired in.
 
 #### `capabilities.mcpServers`
 
-The MCP servers your BriefAgent requires, declared explicitly and
+The MCP servers your QuickAgent requires, declared explicitly and
 **version-pinned to this release**:
 
 ```yaml
@@ -249,7 +249,7 @@ Informational in v1 — recorded and displayed, not auto-installed.
   leak into a release.
 - `publish.channel` — `stable` (default) or `beta`.
 
-## What your BriefAgent gets at run time
+## What your QuickAgent gets at run time
 
 `agentry run` verifies the release (sha256 digest + DSSE attestation —
 the same gate as `agentry install`), then compiles manifest + operator
@@ -281,7 +281,7 @@ volume.
 **Machine setup & MCP profiles.** `agentry setup` configures your
 preferred LLM provider and stands up the Docker MCP gateway once. The
 first run of a release that declares `secrets:` starts a guided setup
-that collects each key into the BriefAgent's **MCP profile** (stored per
+that collects each key into the QuickAgent's **MCP profile** (stored per
 exact release signature); keep it for future runs or remove it on
 completion — configurable at run time with `--keep-profile`, the
 guided question, or the policy default. `agentry profiles list|remove`
@@ -302,13 +302,13 @@ exit 15 / 16.
 
 **Exit codes.** `0` ok · `10` verify failed · `11` refused by
 policy / missing secret · `12` package not compilable/runnable ·
-`13` gateway or docker environment · `14` the BriefAgent itself failed ·
+`13` gateway or docker environment · `14` the QuickAgent itself failed ·
 `15` timeout · `16` budget · `17` output schema.
 
 **The output folder** (`--out`, default `./agentry-out/<ns>-<name>-<runid>/`):
 
 ```
-reports/…              # whatever the BriefAgent wrote via write_report
+reports/…              # whatever the QuickAgent wrote via write_report
 result.json            # the machine-readable result envelope
 receipts/              # events.ndjson, gateway.log, run-plan.json, meta.json, task.txt
 ```
@@ -325,14 +325,14 @@ application's** MCP servers and built-in tools standing in — nothing
 bundled either way, and no docker gateway involved:
 
 ```bash
-agentry install your-namespace/my-briefagent --provider claude    # Claude Code
-agentry install your-namespace/my-briefagent --provider codex     # Codex
-agentry install your-namespace/my-briefagent --provider openclaw  # OpenClaw
+agentry install your-namespace/my-quickagent --provider claude    # Claude Code
+agentry install your-namespace/my-quickagent --provider codex     # Codex
+agentry install your-namespace/my-quickagent --provider openclaw  # OpenClaw
 
 # or by explicit target:
-agentry install your-namespace/my-briefagent            # the default target (first runtime.interfaces entry)
-agentry install your-namespace/my-briefagent --target claude-skill
-agentry install your-namespace/my-briefagent --target agents-md
+agentry install your-namespace/my-quickagent            # the default target (first runtime.interfaces entry)
+agentry install your-namespace/my-quickagent --target claude-skill
+agentry install your-namespace/my-quickagent --target agents-md
 ```
 
 The `claude-skill` target compiles the capability contract into
@@ -351,11 +351,11 @@ pipeline: manifest validation, content scanning against your declared
 capabilities, and DSSE signing. Published releases are immutable and
 content-addressed; `agentry run`/`install` verify the digest and
 signature before anything executes. The registry's language rule applies
-here too: a published BriefAgent is *scanned, with N findings, signed* —
+here too: a published QuickAgent is *scanned, with N findings, signed* —
 never "safe". Declare the least you need and the whole chain stays
 reviewable.
 
 ## License
 
-This template is MIT (see [LICENSE](LICENSE)). Your BriefAgent's own
+This template is MIT (see [LICENSE](LICENSE)). Your QuickAgent's own
 license is whatever you set in `agent.yaml` and your LICENSE file.
