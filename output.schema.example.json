@@ -1,5 +1,5 @@
 {
-  "$comment": "Rename this file to output.schema.json (and add it to publish.include) to opt in to structured output: the runner embeds the schema in the instruction and requires the BriefAgent's final message to be a single valid JSON document (exit code 17 otherwise). Under the name output.schema.example.json it is inert documentation.",
+  "$comment": "Rename this file to output.schema.json (and add it to publish.include) to opt in to structured output: the runner embeds the schema in the instruction and requires the QuickAgent's final message to be a single valid JSON document (exit code 17 otherwise). Under the name output.schema.example.json it is inert documentation.",
   "type": "object",
   "required": ["status", "summary"],
   "properties": {
