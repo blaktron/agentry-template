@@ -1,361 +1,237 @@
 # QuickAgent template
 
-The starting point for a **QuickAgent** — a single-purpose AI agent
-packaged for [Agentry](https://secureagentry.net). A QuickAgent is one
-manifest that declares what the agent is and what it may touch, plus the
-instruction content itself. No tool code ships in a QuickAgent, ever: at
-run time a per-run Docker MCP gateway serves the tools the manifest
-declares, plus the report and input tools every run gets. Installed into
-an existing coding agent (Claude Code, Codex, …) instead, the package
-compiles the same contract into that application's tool grants, and
-enforcement there is the host's.
+A starting point for a **QuickAgent**: a single-purpose AI agent packaged
+for [Agentry](https://secureagentry.net). A QuickAgent is a manifest
+(`agent.yaml`) that declares what the agent may touch, and an instruction
+(`AGENT.md`) that says what it does. It ships no tool code. When it runs,
+the Agentry runner serves exactly the tools the manifest declares, through
+a per-run MCP gateway, and nothing else.
 
-One agent, one job: task in, result out, reports in an output folder,
-then gone.
+This template runs as it stands: it reads the files you give it and writes
+a report. `agent.yaml` shows every other manifest option, commented, with
+its limits. The full reference is the
+[QuickAgents documentation](https://docs.secureagentry.net/quickagents/).
+
+**This README is about the template.** The README you publish is shown on
+your QuickAgent's page, so replace this one with your own: what it does,
+what to give it, what it returns.
 
 ## Quick start
 
 ```bash
-# 1. Start from this template (GitHub: "Use this template"), then:
+# Start from this template ("Use this template" on GitHub), then:
 git clone https://github.com/your-namespace/my-quickagent && cd my-quickagent
 
-# 2. Make it yours: name, namespace, summary, instructions, capabilities.
+# Make it yours: name, namespace, summary, guide, instruction, capabilities.
+# Keep AGENT.md's frontmatter name and description equal to name and summary.
 $EDITOR agent.yaml AGENT.md
 
-# 3. One-time machine setup: LLM provider + the docker MCP gateway.
+# Once per machine: your model (an API key, or your ChatGPT, Claude or
+# Copilot plan) and the docker MCP gateway.
 agentry setup
 
-# 4. Validate offline — the same rules and scanners the registry runs.
+# The registry's manifest rules and offline scanners, run here.
 agentry validate .
 
-# 5. See exactly what the runner will enforce (no docker needed).
+# The compiled run plan: tools, mounts, network. No docker needed.
 agentry run --local . --dry-run --allow-unsigned --yes
 
-# 6. Run it once, isolated, with an output folder for reports.
-echo "your task here" | agentry run --local . --allow-unsigned --yes --out ./agentry-out
+# One run, with a file to read. Reports and receipts land in ./agentry-out.
+agentry run --local . --allow-unsigned --yes --out ./agentry-out --file notes.pdf
 
-# 7. Publish to the registry (scanned, signed, immutable), then anyone runs:
+# Optional: what the registry's review would be expected to say, before you
+# submit. Needs your own TypeSafe key.
+agentry review .
+
+# Publish (scanned, signed, immutable). The first time, create the
+# QuickAgent at https://secureagentry.net/new, then:
+agentry login
 agentry publish
-agentry run your-namespace/my-quickagent@^0.1 --input task.json
+agentry run your-namespace/my-quickagent@^0.1 --file notes.pdf
 ```
 
-`make validate`, `make dry-run`, and `make run` wrap steps 4–6.
+`make validate`, `make dry-run`, `make review` and `make run FILES="…"`
+wrap the checks and the local run.
 
-## Repository layout
+Two other ways to start: `agentry init` scaffolds a smaller package (and
+`agentry init --from` imports a `SKILL.md` or an MCP registry
+`server.json`), and `agentry draft "what it should do"` has the built-in
+Drafter write one (it needs your own TypeSafe key, as `review` does). The [Builder](https://secureagentry.net/build), on the
+site and in the desktop app, does both in a form.
+
+## What is in it
 
 ```
 my-quickagent/
-├── agent.yaml                  # the manifest — identity + security contract (required)
-├── AGENT.md                    # the instruction file (entrypoints.instruction)
-├── README.md                   # rendered on the QuickAgent's registry page
-├── LICENSE                     # required for public publication (SPDX in agent.yaml)
-├── output.schema.example.json  # rename to output.schema.json for structured output
-├── Makefile                    # validate / dry-run / run convenience targets
-└── .gitignore                  # keeps run outputs out of the source tree
+├── agent.yaml                  # the manifest (required)
+├── AGENT.md                    # the instruction (entrypoints.instruction)
+├── README.md                   # shown on the QuickAgent's page; required to publish publicly
+├── LICENSE                     # required to publish publicly, with `license` set
+├── output.schema.example.json  # rename to output.schema.json for JSON output
+├── Makefile                    # validate, dry-run, review, run
+└── .gitignore                  # keeps run output out of the repository
 ```
 
-There is one instruction file, whatever the agent does. A file with Agent
-Skills frontmatter (this template's `AGENT.md` has it) works unchanged:
-the frontmatter is stripped and the body becomes the harness instruction.
-An existing `SKILL.md` can be named as `entrypoints.instruction: SKILL.md`.
-MCP servers a QuickAgent needs are declared under `capabilities.mcpServers`,
-not packaged as agents of their own.
+`SECURITY.md` is the template's own and need not ship with your
+QuickAgent; `publish.include` leaves it out.
 
-## The manifest, option by option
+## The manifest at a glance
 
-`agent.yaml` is a closed schema: unknown keys are rejected, so a typo
-cannot silently disable a control. `schemaVersion: "2"` is what you write;
-releases published under `"1"` (the old `kind`-classified manifest) stay
-readable forever, but only a v2 manifest can declare `interactive`.
+`agent.yaml` is a closed schema: an unknown key is an error, so a typo
+cannot switch a control off. Each block, and where the reference covers it:
 
-### Identity and metadata
-
-| Field | Required | Rules |
+| Block | What it says | Reference |
 |---|---|---|
-| `name` | yes | lowercase `[a-z0-9-]`, ≤65 chars, starts/ends alphanumeric; unique within the namespace |
-| `namespace` | yes | the publishing handle (yours or your org's), lowercase `[a-z0-9-]`, ≤39 chars |
-| `modes` | yes | the run modes the release supports: `[autonomous]`, `[interactive]`, or both (see below) |
-| `version` | yes | strict semver, no leading `v`; must equal the git tag when publishing from a tag, and exceed every version already on the channel |
-| `summary` | yes | one plain-text line, ≤140 characters — shown everywhere the QuickAgent appears |
-| `license` | for public publish | an SPDX identifier (`MIT`, `Apache-2.0`, …) matching your LICENSE file |
-| `authors` | no | list of `{name, email?}` credits |
-| `homepage` | no | informational URL shown on the registry page |
-| `tags` | no | lowercase `[a-z0-9-]` search facets |
+| `name`, `namespace`, `version`, `summary`, `license`, `authors`, `homepage`, `tags` | identity; `version` is strict semver, `summary` one line of at most 140 characters | [Identity](https://docs.secureagentry.net/quickagents/#identity-and-metadata) |
+| `modes` | `autonomous`, `interactive`, or both | [Modes](https://docs.secureagentry.net/quickagents/#modes-and-the-instruction-file) |
+| `entrypoints.instruction` | the instruction file, `AGENT.md` by default | same |
+| `guide` | what a person reads before a run: overview, what to prepare, which files, the task placeholder, help for each key. Never shown to the agent | [guide](https://docs.secureagentry.net/quickagents/#guide-what-a-person-reads-before-a-run) |
+| `inputs` | the kinds of file it takes, and whether the agent reads their text or the originals first | [inputs](https://docs.secureagentry.net/quickagents/#inputs-what-files-it-takes-and-how-it-reads-them) |
+| `intake` | questions asked before a run: text, choice, file, secret, a repository, a file at a URL, a target host | [intake](https://docs.secureagentry.net/quickagents/#intake-questions-asked-before-a-run) |
+| `interactive` | an opening line and an idle limit for sessions | [interactive](https://docs.secureagentry.net/quickagents/#interactive-session-hints) |
+| `knowledge` | knowledge packs the release ships, and whether to ask the person for one of theirs | [knowledge](https://docs.secureagentry.net/quickagents/#knowledge-packs-the-release-ships) |
+| `runtime` | a model hint (never a lock) and the coding-agent exports it supports | [runtime](https://docs.secureagentry.net/quickagents/#runtime-informational-hints) |
+| `capabilities` | the contract: network, filesystem, commands, secrets (required or optional), target hosts, data categories, MCP servers | [capabilities](https://docs.secureagentry.net/quickagents/#capabilities-the-security-contract) |
+| `dependencies` | other QuickAgents it expects; shown, not installed | [dependencies](https://docs.secureagentry.net/quickagents/#dependencies) |
+| `publish` | the archive's allowlist, and the channel | [publish](https://docs.secureagentry.net/quickagents/#publish) |
 
-### `modes` — how the QuickAgent runs
+The guide, the inputs block and the intake grant nothing, so a release
+that changes only them asks nobody to consent again. Everything under
+`capabilities`, and the names of the packs a release ships, is the
+contract: an upgrade that widens it asks for consent again.
 
-| mode | what a run is | status |
-|---|---|---|
-| `autonomous` | starts from its files — after the `intake` questions, if any, and MCP profile authentication — does the job, writes its output and receipts, and ends | `agentry run` today |
-| `interactive` | the same plan and controls, but the run is a conversation: a chat in the terminal (CLI) or an in-app window (desktop). The agent can ask for information as the work reveals the need; you can answer and drop files into the read-only inputs folder. You cannot give it more access than the manifest declares | `interactive` runs today (agentry-cli#35, #36); the chat needs a terminal on stdin, so a piped task and JSON output are not accepted |
+## What a run gives your agent
 
-### `entrypoints.instruction` — the one instruction file
+Every run gets these tools, whatever the manifest declares:
 
-`AGENT.md` when omitted. Frontmatter is stripped; the body is the harness
-instruction. The file must exist and be matched by `publish.include`.
-
-### `intake` — questions asked before a run
-
-Either mode may ask a few things up front; the runner asks them through
-the same prompter that collects MCP profile secrets and stages the answers
-read-only at `/inputs/intake.json`. Each question has an `id`
-(`[a-z0-9_]{1,64}`, unique), a `prompt`, a `type` and `required`. The four
-types are `text` (the default); `secret`, injected as a run-scoped secret
-and never written as text; `choice` with its `choices`; and `file`, a host
-path the runner stages into the inputs folder. At most 20. Non-secret
-answers are receipts.
-
-### `guide` — what a person reads before a run
-
-Optional. The author's own words for the run setup on the site and the
-desktop, and for `agentry run` on a terminal. They are shown to people
-only: the guide never reaches the agent's context, the run plan, the
-capability diff or the consent text, so changing only the guide asks
-nobody to consent again. Without it, the setup shows `summary` and a
-"What to have ready" list derived from `intake` and `capabilities`.
-
-| part | where it shows | limit |
-|---|---|---|
-| `overview` | *Before you start*, in place of the summary, and before the questions on a terminal. Markdown: raw HTML is not shown, images are not loaded, and links open in the browser only when they are `http:` or `https:` | 4096 bytes |
-| `prepare` | *Before you start*, as "What to have ready", in place of the derived list | 10 items of 200 characters |
-| `files` | *Files*, above the file picker | 500 characters |
-| `task` | the task field's placeholder, on *Details* | 200 characters |
-| `connect` | *Connect tools*, under each key's field, and beside each key's prompt on a terminal. Keyed by a secret name the release declares (`capabilities.secrets` or an MCP server's `secrets`); any other name fails validation | 300 characters each |
-
-Every part except `overview` is one line of plain text: no control or
-format characters (zero-width, bidirectional overrides). `overview` may
-span lines but carries no NUL, C1 control or format character either. The
-block is in schema v2. A CLI or desktop older than the one that added it
-refuses a manifest that carries it, which is why the template ships it
-commented out.
-
-### `interactive` — session hints
-
-`opening` (≤ 500 characters) is the first message when a session starts
-with no task text; `idleTimeoutSeconds` asks for less than the operator's
-policy allows, never more. Validation warns when `interactive` is not
-among the modes, and accepts the release anyway.
-
-### `runtime` — informational hints
-
-- `runtime.models` — free-form model hint patterns (e.g. `["claude-*"]`).
-  A hint, never a lock: the **operator's** runner policy decides which
-  model actually runs, with an operator-owned API key.
-- `runtime.interfaces` — which `agentry install` targets the package
-  supports: `claude-skill`, `agents-md`. Independent of mode; the first
-  listed one is the default target. Installing to a target not listed
-  here warns but proceeds.
-
-### `capabilities` — the security contract
-
-Closed vocabulary; omitted or empty means a **pure-text QuickAgent**,
-whose only tools are `write_report` and the input readers every run gets.
-Declared capabilities are what the registry scans against
-(declared-vs-detected), what installs prompt on (egress/exec need typed
-consent; widened contracts re-ask on upgrade), and what the runner turns
-into hard enforcement.
-
-#### `capabilities.network.egress`
-
-| value | meaning | run-time enforcement |
-|---|---|---|
-| `none` (or omitted) | no outbound network | tools container runs with networking disabled; no `fetch` tool exists |
-| `[exact.dns.host, …]` | outbound only to these hosts | the `fetch` tool is granted, restricted to the listed hostnames (checked per request and per redirect hop), and the gateway pins the tools container to `host:443` with per-server proxies + DNS interception |
-| `"*"` | unrestricted egress | refused at run time unless the operator's policy sets `allowWildcardEgress: true`; the receipt then discloses it loudly |
-
-#### `capabilities.filesystem.read` / `.write`
-
-| value | meaning | run-time enforcement |
-|---|---|---|
-| `none` (or omitted) | no access in that direction | the corresponding tools don't exist |
-| `workspace` | the whole task workspace | `read` grants `fs_read` + `fs_list`; `write` grants `fs_write`; the workspace is bind-mounted into the **tools** container `ro`/`rw` accordingly |
-| `{ paths: [repo/relative, …] }` | only these paths | per-path bind mounts plus server-side grant checks; a listed directory covers everything under it |
-
-The agent container itself never mounts the workspace — every file access
-goes through the gateway's tools, which is what makes the contract
-enforceable.
-
-#### `capabilities.exec`
-
-| value | meaning | run-time enforcement |
-|---|---|---|
-| `none` (or omitted) | no subprocesses | no `run_command` tool; harness built-in shells are never enabled |
-| `{ commands: [jq, git, …] }` | only these binaries | `run_command` is granted, restricted to the listed argv[0]s via an allowlist plus a shim `PATH` containing only those commands, cwd `/workspace` |
-
-#### `capabilities.secrets`
-
-A list of environment variable **names** — never values. At run time
-every name must resolve: the runner looks in the QuickAgent's MCP profile
-first, then the operator's secret source (host env or a dotenv file, per
-their policy). A name that resolves nowhere stops the run before it
-starts (exit 11, naming the variable). Values are injected only into the
-tools container; the `fetch` tool can send one as an auth header
-(`auth: {env: NAME}`) without the value ever entering model context, and
-values never appear in plans, receipts, or process listings.
-
-#### `capabilities.dataAccess`
-
-Semantic categories the QuickAgent touches, for review and audit:
-`email`, `calendar`, `files`, `tickets`, `code`, `messages`, `payments`,
-`other`. Operators may catalog extra MCP servers per category in their
-runner policy; categories you did not declare are never wired in.
-
-#### `capabilities.mcpServers`
-
-The MCP servers your QuickAgent requires, declared explicitly and
-**version-pinned to this release**:
-
-```yaml
-capabilities:
-  mcpServers:
-    - npm: github-mcp-server-js   # or `pypi: package-name`
-      version: 0.1.7              # exact version — ranges are rejected
-      tools: [list_issues, get_issue]   # optional: only these tools are granted
-      secrets: [GITHUB_TOKEN]     # env-var NAMES the server needs, never values
-      env:                        # plain configuration the server reads
-        GITHUB_PERMISSION: read-only
-      egress: [api.github.com]    # the server's own outbound allowlist
-```
-
-The release's first run installs the servers from the registries the
-operator's policy names (npm and PyPI by default), pins the resolved
-artifacts, and configures the gateway to load them for **this exact
-release only**. A new version starts the trust decision over, and removal
-deletes the configuration and keys unless the operator explicitly keeps
-them. Server `secrets` are collected once into the release's MCP profile
-by the guided setup, exactly like agent-level secrets. `env` is the
-server's plain configuration — a mode switch, a directory — written in
-the manifest so it is in the release diff and the review: at most 16
-entries, single-line values, and never a name that is also a secret (the
-validator refuses that). The registry validates and shows `env`, and the
-runner passes it to the server's process when it launches it.
-
-### `dependencies`
-
-```yaml
-dependencies:
-  agents:
-    - ref: acme/other-agent
-      version: "^1.2"     # semver constraint; omit for any
-```
-
-Informational in v1 — recorded and displayed, not auto-installed.
-
-### `publish`
-
-- `publish.include` (required) — the release archive **allowlist** of glob
-  patterns (`path.Match` segments; a whole segment `**` matches any number
-  of segments). Nothing outside it ships, so forgotten scratch files can't
-  leak into a release.
-- `publish.channel` — `stable` (default) or `beta`.
-
-## What your QuickAgent gets at run time
-
-`agentry run` verifies the release (sha256 digest + DSSE attestation —
-the same gate as `agentry install`), then compiles manifest + operator
-policy into a deterministic run plan. The runner then executes one
-container tree: an isolated agent container (internal-only network; it
-can reach exactly the MCP gateway and an allowlisted egress proxy for the
-model API), a per-run Docker MCP gateway, and the companion tools server.
-
-| manifest declaration | tool(s) granted |
+| Tool | What it does |
 |---|---|
-| — (always) | `write_report` — write files into the run's output folder |
-| — (always) | `list_inputs`, `read_input` — the run's provided input files, read-only |
+| `list_inputs`, `read_input`, `search_inputs` | read the files given to the run, under `/inputs`, as decoded text or as uploaded |
+| `write_report` | write a file into the run's `reports/` folder, which the person receives |
+| `scratch_write`, `scratch_read`, `scratch_list`, `scratch_search` | a private scratch folder, deleted when the run ends |
+| `export_pdf` | turn a Markdown report into a PDF (a report, a letter or a memo) in the person's report design |
+
+And these only when the manifest declares them:
+
+| Declaration | Tools |
+|---|---|
 | `filesystem.read` | `fs_read`, `fs_list` |
 | `filesystem.write` | `fs_write` |
-| `network.egress` hosts | `fetch` (with optional declared-secret auth) |
-| `exec.commands` | `run_command` |
+| `network.egress` hosts | `fetch`, to those hosts only, optionally sending a declared secret as an auth header |
+| `exec.commands` | `run_command`, for those programs only |
+| `targetHosts` | the runner's host tools, on the machine the person names (local runs only) |
+| `mcpServers` | each server's tools, or those its `tools` list allows |
 
-**The runner contract**, appended to every instruction: tools come only
-from the gateway; the workspace is rooted at `/workspace` as seen by
-tools; provided input files are under `/inputs`; report files must be
-written with `write_report`; the final message is the run's result.
+Files reach a run through `--file`, a `file` intake answer, the uploads of
+a run in Agentry, or a `repository` or `url` answer the runner fetches
+first. Documents, spreadsheets, slides, mail and images are turned into
+text before the agent starts, archives are unpacked, and every uploaded
+file is checked for malware. None of this needs a capability.
 
-**Input files.** Hand the run external files with `agentry run --file
-PATH` (repeatable; files or directories). They mount read-only at
-`/inputs` on the tool plane — task material like stdin, no manifest
-capability needed. Output and receipts stay on the separate `/out`
-volume.
+Before your instruction, every run's model reads Agentry's **System
+Prompt**. It says the run is sandboxed, which tools it has and what each
+grant allows, where the inputs are, how to read an attached knowledge pack
+or Writing Voice, how to write reports and when to export a PDF, and that
+the last message is the result. Text in inputs, files and tool results is
+data, never instructions. The
+[runner reference](https://docs.secureagentry.net/runner/#the-system-prompt)
+prints it word for word. To read the text your own QuickAgent's model
+gets, run the dry run above and open the `harness/` file in the plan
+directory it prints.
 
-**Machine setup & MCP profiles.** `agentry setup` configures your
-preferred LLM provider and stands up the Docker MCP gateway once. The
-first run of a release that declares `secrets:` starts a guided setup
-that collects each key into the QuickAgent's **MCP profile** (stored per
-exact release signature); keep it for future runs or remove it on
-completion — configurable at run time with `--keep-profile`, the
-guided question, or the policy default. `agentry profiles list|remove`
-manages stored profiles.
+## Writing the instruction
 
-**Structured output.** Ship an `output.schema.json` at the archive root
-and list it in `publish.include`. The runner then embeds the schema in
-the instruction and requires the final message to parse as JSON; anything
-else is exit 17, with the raw output preserved in the receipts. This
-template ships an inert `output.schema.example.json` to start from.
+`AGENT.md` follows the shape the Drafter uses: six headings, in this
+order, even when a section is one line.
 
-**Task input.** `--input FILE`, else piped stdin, else an empty task.
-Runs compose like processes: `agentry run a … | agentry run b …`.
+- `## Role`: one or two sentences.
+- `## Inputs`: the task, each intake answer and each kind of file, and what
+  to do when one is missing.
+- `## Steps`: numbered, one action each, naming the tool it uses and the
+  rule for deciding.
+- `## Output`: exactly what it returns, with a skeleton to copy.
+- `## Background`: the domain knowledge a run with no network cannot look
+  up.
+- `## Checks`: edge cases, and what the result must pass before it is
+  returned.
 
-**Budgets.** The operator policy sets defaults (timeout, max tool-call
-turns); `--timeout` and `--max-turns` override per run. Exceeding them is
-exit 15 / 16.
+Spend the words on the task. The System Prompt already covers the sandbox,
+the inputs, the tools and how to report, so the instruction need not
+repeat any of it. Name only tools the manifest grants: a step that needs a
+host, a command or a key the manifest does not declare fails in the run,
+and the registry's scan can report it as an undeclared capability. A
+result the person wants as a PDF is written in Markdown with
+`write_report` and converted with `export_pdf`; `write_report` refuses a
+`.pdf`.
 
-**Exit codes.** `0` ok · `10` verify failed · `11` refused by
-policy / missing secret · `12` package not compilable/runnable ·
-`13` gateway or docker environment · `14` the QuickAgent itself failed ·
-`15` timeout · `16` budget · `17` output schema.
+Everything in `AGENT.md` reaches the agent, so keep notes for yourself out
+of it. Its frontmatter is stripped at run time and becomes the skill
+header when the package is installed as a Claude skill; its `name` must
+equal the manifest's (validation refuses a mismatch), and its
+`description` should equal the `summary`. The registry caps
+an instruction at what a reviewer can read: 2 MiB a file and 1 MiB of text
+across the archive. The Drafter keeps its own under 32,768 bytes.
 
-**The output folder** (`--out`, default `./agentry-out/<ns>-<name>-<runid>/`):
+For JSON output, rename `output.schema.example.json` to
+`output.schema.json` and add it to `publish.include`. The runner then
+appends the schema to the instruction and requires the final message to
+parse against it (exit 17 otherwise, with the raw output kept in the
+receipts).
 
-```
-reports/…              # whatever the QuickAgent wrote via write_report
-result.json            # the machine-readable result envelope
-receipts/              # events.ndjson, gateway.log, run-plan.json, meta.json, task.txt
-```
+## Checking before you publish
 
-The envelope names every enforcement mechanism that applied
-(`capabilities_enforced`), the exact release digest, the attestation
-state, usage, and the run-plan hash — the runtime counterpart of the
-registry's public scan report.
+- `agentry validate .` runs the manifest rules and the offline scanners
+  the registry runs.
+- `agentry run --local . --dry-run --allow-unsigned --yes` shows the
+  compiled plan.
+- `agentry review .` runs the built-in Examiner: the registry's rules, AI
+  Review's six questions and a model's reading of every file. It submits
+  nothing, and the registry scans again when you do.
+- `agentry run --local . --allow-unsigned --yes --file …` runs it. Exit
+  codes: `0` done, `10` verification, `11` refused by policy or a missing
+  secret, `12` not compilable, `13` docker or the gateway, `14` the agent
+  failed, `15` timeout, `16` budget, `17` output schema, `18` blocked (the
+  agent said it could not do the task); `1` and `2` are the CLI's own
+  errors and usage.
 
-## Installing into an existing coding agent instead
+The output folder holds `reports/` (what the agent wrote), `result.json`
+(the result, with the release digest, the attestation state, usage and
+the plan's hash) and `receipts/` (the event stream, the gateway's call
+log and the exact run plan).
 
-The same package installs into a host coding agent with **that
-application's** MCP servers and built-in tools standing in — nothing
-bundled either way, and no docker gateway involved:
+## Publishing
+
+`agentry publish` submits the version. Its first publish needs the
+QuickAgent's record, which you create at
+[secureagentry.net/new](https://secureagentry.net/new); that also makes
+the git repository the registry hosts for it, and pushing a release tag
+there submits the same way. The Builder creates the record itself. Every submission is validated, scanned against its declared
+capabilities, held for a person's review when the findings call for it,
+and signed. A published release is immutable and content-addressed, and
+`agentry run` and `agentry install` check its digest and signature before
+anything runs. The archive is capped at 2,000 files and 10 MiB.
+
+A published QuickAgent is *scanned, with N findings, signed*. Agentry
+never calls one "safe", and neither should your README. Declare the least
+you need, and the contract stays easy to review.
+
+## Installing into a coding agent
+
+The same package installs into Claude Code, Codex or OpenClaw, whose own
+tools then stand in for the runner's:
 
 ```bash
 agentry install your-namespace/my-quickagent --provider claude    # Claude Code
 agentry install your-namespace/my-quickagent --provider codex     # Codex
-agentry install your-namespace/my-quickagent --provider openclaw  # OpenClaw
-
-# or by explicit target:
-agentry install your-namespace/my-quickagent            # the default target (first runtime.interfaces entry)
-agentry install your-namespace/my-quickagent --target claude-skill
-agentry install your-namespace/my-quickagent --target agents-md
+agentry install your-namespace/my-quickagent --target agents-md   # a section in ./AGENTS.md
 ```
 
-The `claude-skill` target compiles the capability contract into
-`allowed-tools` frontmatter (`Read`/`Grep`/`Glob` ⇐ filesystem.read,
-`Write`/`Edit` ⇐ filesystem.write, `Bash(cmd:*)` ⇐ exec commands,
-`WebFetch(domain:host)` ⇐ egress hosts); the `agents-md` target
-records the same contract as a Tools note. An allowed-tools line you
-wrote yourself wins: the exporter narrows nothing it did not write.
-Frontmatter without one gets the key inserted. Enforcement in embedded
-mode is the host's.
-
-## Publishing
-
-`agentry publish` submits the version to the registry's mandatory
-pipeline: manifest validation, content scanning against your declared
-capabilities, and DSSE signing. Published releases are immutable and
-content-addressed; `agentry run`/`install` verify the digest and
-signature before anything executes. The registry's language rule applies
-here too: a published QuickAgent is *scanned, with N findings, signed* —
-never "safe". Declare the least you need and the whole chain stays
-reviewable.
+The `claude-skill` export compiles the contract into the skill's
+`allowed-tools` (`Read`, `Grep` and `Glob` for a read grant, `Write` and
+`Edit` for write, `Bash(cmd:*)` per command, `WebFetch(domain:host)` per
+host). Enforcement there is the host application's, not Agentry's.
 
 ## License
 
-This template is MIT (see [LICENSE](LICENSE)). Your QuickAgent's own
-license is whatever you set in `agent.yaml` and your LICENSE file.
+The template is MIT ([LICENSE](LICENSE)). Your QuickAgent's license is
+whatever you set in `agent.yaml` and put in its LICENSE file.

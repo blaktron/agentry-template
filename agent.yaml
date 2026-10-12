@@ -1,178 +1,241 @@
-# agent.yaml — the QuickAgent manifest (manifest schema v2).
+# agent.yaml: the QuickAgent manifest, schema v2.
 #
-# This file is the whole contract: what the QuickAgent is, where its
-# instructions live, and — most importantly — what it may touch. The
-# registry scans releases against these declarations, clients display and
-# diff them on install, and the Agentry runner ENFORCES them: an
-# undeclared capability is a tool your QuickAgent simply does not have.
+# The manifest says what the QuickAgent is, where its instruction lives and
+# what it may touch. The registry scans each release against it, an install
+# shows it and asks for consent, and the Agentry runner enforces it: a
+# capability this file does not declare is a tool the run does not have.
 #
-# Every option is shown below; commented lines are the alternatives.
-# Full field-by-field documentation: README.md in this template, and
-# https://docs.secureagentry.net.
+# The uncommented lines are a working QuickAgent that reads the files a
+# person gives it and writes a report. Commented lines show every other
+# option, with its limits. The field-by-field reference is
+# https://docs.secureagentry.net/quickagents/.
 
-# The manifest schema major. "2" is what you write; releases published
-# under "1" (the old kind-classified manifest) stay readable forever.
+# The schema major. Write "2". Releases published under "1" (the old
+# kind-based manifest) still run, but only v2 can use most blocks below.
 schemaVersion: "2"
 
-# Identity. name is lowercase [a-z0-9-], up to 65 chars; namespace is the
-# publishing handle (yours, or your org's) that owns the QuickAgent.
-# Rename both — these are placeholders.
+# Identity: rename both. name is lowercase letters, digits and hyphens, at
+# most 65 characters, starting and ending with a letter or digit. namespace
+# is your handle or your organization's, at most 39 characters.
 name: my-quickagent
 namespace: your-namespace
 
-# The run modes this release supports — one or both:
-#   autonomous  — starts from its files (after the intake questions below,
-#                 if any, and MCP profile authentication), does the job,
-#                 writes its output and receipts, and ends. This is what
-#                 `agentry run` does today.
-#   interactive — the same plan and the same controls, but the run is a
-#                 conversation: a chat in the terminal (CLI) or an in-app
-#                 window (desktop). The agent can ask for information; the
-#                 user can answer and drop files into the read-only inputs
-#                 folder. Nobody can widen the capabilities declared below.
-#                 The CLI (`agentry run --mode interactive`) and the desktop
-#                 app both run sessions today.
+# How the QuickAgent runs: one mode or both.
+#   autonomous:  runs from its task and files (after the intake questions, if
+#                any), writes its result and reports, and ends.
+#   interactive: the same plan and controls, but the run is a conversation
+#                (a chat in the terminal, the desktop's run panel, a session
+#                in Agentry). The person can answer and add files; nothing
+#                they say widens the capabilities below.
 modes: [autonomous]
 # modes: [autonomous, interactive]
 
-# Strict semver, no leading "v". Must match the git tag when publishing
-# from a tag, and must exceed every version already on the channel.
+# Strict semver, no leading "v". It must equal the git tag when you publish
+# from a tag, and be higher than every version already on the channel.
 version: 0.1.0
 
-# One plain-text line, at most 140 characters. Shown everywhere.
-summary: "Reads the task and workspace, then writes a short report"
+# One plain-text line, at most 140 characters. Shown wherever the
+# QuickAgent is listed.
+summary: "Reads the files you give it and writes a short report on what your task asks"
 
-# SPDX license identifier. Required for public publication.
+# An SPDX identifier (or expression), with a LICENSE file beside it.
+# Required to publish publicly.
 license: MIT
 
-# Optional credits (email optional per author).
+# Optional. Each author has a name and, optionally, an email.
 authors:
   - name: Your Name
     # email: you@example.com
 
-# Optional informational URL, shown on the QuickAgent's page.
-homepage: https://github.com/blaktron/agentry-template
+# Optional, shown on the QuickAgent's page.
+# homepage: https://example.com/my-quickagent
 
-# Optional lowercase [a-z0-9-] tags for search facets.
-tags: [template, example]
+# Optional search tags: lowercase letters, digits and hyphens, at most 10.
+tags: [reports, documents]
 
-# The instruction file. AGENT.md when omitted. A leading YAML frontmatter
-# block (the Agent Skills SKILL.md shape, as in this template) is stripped
-# and the body becomes the harness instruction — so a SKILL.md works
-# unchanged as `instruction: SKILL.md`. Must exist and ship (publish.include).
+# The instruction file, AGENT.md when omitted. Leading YAML frontmatter (the
+# Agent Skills SKILL.md shape) is stripped, so a SKILL.md works as it is:
+# `instruction: SKILL.md`. publish.include must match it.
 entrypoints:
   instruction: AGENT.md
 
-# Questions asked before a run starts, in either mode. The runner asks
-# them through the same prompter that collects MCP profile secrets and
-# stages the answers read-only for the agent at /inputs/intake.json.
-# Non-secret answers are part of the run's receipts. At most 20.
+# What a person reads before a run: the run setup on the site, in the
+# desktop and in Agentry, and `agentry run` on a terminal. People only: the
+# agent never sees it, and a change to it asks nobody to consent again.
+# Leave out a part with nothing to say; without the block, the setup derives
+# the steps from the summary, the intake and the capabilities.
+guide:
+  # Markdown, at most 4,096 bytes: what it does and what it returns.
+  overview: |
+    Reads the files you add and writes `report.md`: what your task asked,
+    what the files say about it, and what they leave open.
+  # At most 10 items, one line of at most 200 characters each.
+  prepare:
+    - The files the task is about, as documents, text or data.
+    - One sentence saying what you want the report to answer.
+  # One line, at most 500 characters.
+  files: "Add the documents or data to report on: PDF, Word, Markdown, text, CSV or JSON."
+  # The task field's placeholder: one line, at most 200 characters.
+  task: "e.g. What do these meeting notes decide about the Q3 launch?"
+  # Help for each declared secret, by name: Markdown, at most 2,000
+  # characters each. Every key must be a secret this file declares.
+  # connect:
+  #   MY_API_TOKEN: |
+  #     Create a **read-only** token at https://example.com/settings/tokens.
+
+# What files the QuickAgent takes, and which view of an input its agent
+# reads first. It grants nothing (adding a file is the grant), so it is
+# outside the contract. Without it any file is taken and each keeps its own
+# default view.
+inputs:
+  kinds: [documents, data]   # documents | code | data | images, or any on its own
+  view: text                 # text (decoded text) | original (as uploaded) | both
+
+# Questions asked before a run, in either mode. Answers reach the agent
+# read-only in /inputs/intake.json, and every answer but a secret is in the
+# run's receipts. At most 20 questions; an id is [a-z0-9_], at most 64
+# characters, and unique. Ask only what changes from run to run.
 # intake:
-#   - id: dataset            # [a-z0-9_]+, unique
-#     prompt: "Path to the dataset to analyse"
-#     type: file             # text (default) | secret | choice | file
-#     required: true
-#   - id: region
-#     prompt: "Which region?"
+#   - id: audience
+#     prompt: "Who is the report for?"
+#     # type: text is the default
+#   - id: depth
+#     prompt: "How long a report?"
 #     type: choice
-#     choices: [emea, apac, amer]
+#     choices: [short, detailed]
+#   - id: dataset
+#     prompt: "The dataset to analyse"
+#     type: file               # staged with the run's other inputs
+#     required: true
+#   - id: repository
+#     prompt: "The repository to review"
+#     type: repository         # an https git URL; #branch, #tag or a full commit
+#   - id: advisory
+#     prompt: "The advisory to check against"
+#     type: url                # one https file, fetched before the run
+#   - id: my_api_token
+#     prompt: "Your API token"
+#     type: secret             # needs MY_API_TOKEN under capabilities.secrets;
+#     required: true           # required matches it (absent if optional)
+#   - id: server
+#     prompt: "The server to set up"
+#     type: host               # [user@]host[:port]; listed in targetHosts
+#     required: true
+#
+# A repository or url answer is fetched by the runner into /inputs/<id>/
+# before the run starts. It needs no egress and no secret: giving the source
+# is the grant, and the run setup asks for a token beside it when the source
+# is private.
 
-# What a person reads before a run, in the site's and the desktop's run
-# setup and on a terminal's `agentry run`. Shown to people only: it never
-# reaches the agent, the run plan, the capability diff or the consent, and
-# a change to it alone asks nobody to consent again. Every part is
-# optional; without it the setup shows the summary and a list it derives
-# from intake and capabilities. Needs a client that knows the block (an
-# older CLI or desktop refuses a manifest that carries it).
-# guide:
-#   overview: |           # markdown, ≤ 4096 bytes: what it does and returns.
-#     Reads the task and the workspace and writes a short **report**:
-#     what it found, what it could not check, and what to do next.
-#   prepare:              # ≤ 10 items, ≤ 200 chars each: what to gather first
-#     - The files the task is about
-#     - A sentence saying what you want the report to cover
-#   files: "The documents to report on, as text or Markdown."  # ≤ 500 chars
-#   task: "e.g. summarise the open questions in the design notes"  # the task field's placeholder, ≤ 200 chars
-#   connect:              # help per declared secret NAME, ≤ 300 chars each;
-#                         # each key must be in capabilities.secrets or an
-#                         # MCP server's secrets
-#     MY_API_TOKEN: "Create a read-only token at https://example.com/settings/tokens"
-
-# Hints for interactive sessions (only meaningful with `interactive` in
-# modes; accepted with a warning otherwise). Everything else about a
-# session — budgets, idle timeout, wall time — is the operator's runner
-# policy, which a manifest can only tighten.
+# Interactive sessions only (validation warns if interactive is not among
+# the modes). Budgets, wall time and the idle limit are the operator's
+# policy; these hints can only ask for less.
 # interactive:
-#   opening: "What should I look at?"   # first message when no task text is given; ≤ 500 chars
-#   idleTimeoutSeconds: 900             # policy caps it
+#   opening: "What should the report answer?"   # at most 500 characters
+#   idleTimeoutSeconds: 900
 
-# Informational runtime hints.
+# Knowledge packs. ships names packs the release carries under
+# knowledge/<name>/, made with `agentry knowledge create` (at most 5, each
+# at most 10 MB); they are scanned and signed with the release and are part
+# of the contract. accepts asks the person to attach a pack of their own
+# when they run it; the agent never sees the prompt.
+# knowledge:
+#   ships:
+#     - name: style-guide
+#   accepts:
+#     prompt: "Your team's runbooks, if you have them"   # one line, at most 300 characters
+#     required: false
+
+# Informational hints.
 runtime:
-  # Free-form model hint patterns. A hint, never a lock: the operator's
-  # runner policy picks the model that actually runs.
+  # Model name patterns. A hint, not a lock: the runner's policy, or the
+  # person's own sign-in, decides the model that runs.
   models: ["claude-*"]
-  # Which `agentry install` targets this package supports (independent of
-  # mode; the first listed one is the default target):
-  #   claude-skill — ~/.claude/skills/<name>/ with SKILL.md frontmatter
-  #   agents-md    — extract + upsert a section in ./AGENTS.md
+  # The coding-agent exports this package supports, asked for by name with
+  # `agentry install --target`: claude-skill (a skill under ~/.claude/skills)
+  # and agents-md (a section in ./AGENTS.md).
   interfaces: [claude-skill, agents-md]
 
-# ── The security contract ──────────────────────────────────────────────
-# Closed vocabulary. Empty/omitted = a pure-text QuickAgent (write_report
-# and the read-only list_inputs/read_input tools at run time, nothing
-# else). Declare the LEAST you need: reviewers
-# gate on this, installs prompt on it, and the runner enforces it.
+# ── The capability contract ──────────────────────────────────────────────
+# A closed vocabulary. Declare only what the instruction uses: reviewers
+# read it, an install asks consent for it, and the runner enforces it.
+# Every run also gets, without declaring anything: the input tools
+# (list_inputs, read_input, search_inputs), write_report, a private scratch
+# folder (scratch_write, scratch_read, scratch_list, scratch_search) and
+# export_pdf.
 capabilities:
   network:
-    # none            — no egress; no fetch tool.
-    # [exact.host, …] — the fetch tool, pinned to these DNS names (the
-    #                   runner also enforces at container level).
-    # "*"             — unrestricted egress; refused at run time unless
-    #                   the operator's policy sets allowWildcardEgress.
+    # none:            no network and no fetch tool.
+    # [exact.host, …]: the fetch tool, to these DNS names only.
+    # "*":             any host; refused at run time unless the operator's
+    #                  policy sets allowWildcardEgress.
     egress: none
   filesystem:
-    # none | workspace | { paths: [repo/relative, …] } for each direction.
-    # read grants fs_read + fs_list; write grants fs_write. paths mode
-    # limits tools (and the runner's mounts) to exactly those paths.
-    read: workspace
+    # none | workspace | { paths: [relative/path, …] }, for each direction.
+    # read grants fs_read and fs_list; write grants fs_write. In a run the
+    # workspace is the QuickAgent's own package, not the person's files:
+    # those arrive as inputs, which need no grant.
+    read: none
     write: none
-  # none | { commands: [single-token, …] } — commands grants run_command,
-  # restricted to exactly these binaries.
+  # none | { commands: [sha256sum, diff, …] }: run_command, limited to them.
+  # Prefer the commands every machine provides (listed at
+  # https://docs.secureagentry.net/runner/#the-commands-every-machine-provides);
+  # others run only where the operator's catalogue has them. To work on a
+  # remote machine, declare a target host rather than ssh.
   exec: none
-  # Environment variable NAMES the QuickAgent needs — never values. The
-  # runner resolves them from the operator's secret source and injects
-  # them only into the tools container; the fetch tool can send one as an
-  # auth header without the value ever entering model context.
+  # Environment variable NAMES, never values. A required secret the run
+  # cannot resolve stops it before it starts (exit 11). fetch can send one
+  # as an auth header without the model ever seeing the value.
   # secrets: [MY_API_TOKEN]
-  # Semantic data categories touched, for review and audit:
+  # Declared secrets a run can do without. Each must already be declared,
+  # here or by an MCP server; every other declared secret is required.
+  # optionalSecrets: [MY_API_TOKEN]
+  # The ids of the intake's host questions, at most 4. The agent may run
+  # any command the person's account can run on that machine, through the
+  # runner's host tools; the manifest never names the machine. Local runs
+  # only: a run in Agentry refuses a target host.
+  # targetHosts: [server]
+  # Categories of data it touches, for review and audit:
   # email | calendar | files | tickets | code | messages | payments | other
-  # dataAccess: [tickets]
-  # MCP servers this QuickAgent requires (RUNNER-PLAN-3): exactly one of
-  # npm/pypi per entry, and an EXACT version — the pin is part of this
-  # release, so a new version is a new supply-chain decision. The runner
-  # installs them from the operator's trusted registries and loads them
-  # for this exact release signature only; removal deletes their
-  # configuration and keys unless explicitly kept.
+  dataAccess: [files]
+  # MCP servers the QuickAgent needs, at most 8. A package server names one
+  # of npm or pypi and an EXACT version: the pin is part of the release, so
+  # a new version is a new supply-chain decision. The runner installs it
+  # from the operator's registries for this release only. A remote server
+  # is named by its https address and takes no version, egress, env or
+  # oauth. Check that a server runs here before you declare it:
+  # https://docs.secureagentry.net/runner/#declared-mcp-servers-runner-plan-3
   # mcpServers:
-  #   - npm: github-mcp-server-js   # the package; or `pypi: name`
-  #     version: 0.1.7              # exact — ranges are rejected
-  #     tools: [list_issues, get_issue]   # optional allowlist; omit for all
-  #     secrets: [GITHUB_TOKEN]     # env-var NAMES the server reads; the
-  #                                 # guided setup collects the values
-  #     env:                        # plain configuration, never a secret;
-  #       GITHUB_PERMISSION: read-only   # visible in the diff and the review
-  #     egress: [api.github.com]    # the server's own outbound allowlist
+  #   - npm: github-mcp-server-js        # or pypi: <name>
+  #     version: 0.1.7                   # exact; ranges are refused
+  #     tools: [list_issues, get_issue]  # optional allowlist; omit for all
+  #     secrets: [GITHUB_TOKEN]          # NAMES the server reads
+  #     env:                             # plain settings, never a secret
+  #       GITHUB_PERMISSION: read-only   # (at most 16, in the release diff)
+  #     egress: [api.github.com]         # the server's own hosts
+  #   - url: https://mcp.linear.app/mcp  # a remote server
+  #     auth: oauth                      # oauth | secret | none
+  #     scopes: [read]                   # what consent asks for (oauth only)
+  #     tools: [list_issues]
+  #   - url: https://api.githubcopilot.com/mcp/readonly
+  #     auth: secret                     # its one secret, as a bearer header
+  #     secrets: [GITHUB_TOKEN]
+  # A package server can sign in by OAuth too, with an oauth block (issuer,
+  # scopes, and the files or env the access token is written into). Copy one
+  # the docs list exactly rather than writing your own:
+  # https://docs.secureagentry.net/quickagents/ ("Remote servers and OAuth
+  # sign-in").
 
-# Informational in v1 (no auto-install): other QuickAgents this one
-# expects to exist.
+# Informational: other QuickAgents this one expects. Shown, not installed.
 # dependencies:
 #   agents:
 #     - ref: acme/other-agent
 #       version: "^1.2"
 
-# What ships in the release archive — an ALLOWLIST of glob patterns
-# (path.Match segments; "**" matches any number of segments). Nothing
-# else is packed. channel is stable (default) or beta.
+# The release archive's ALLOWLIST of glob patterns ("**" matches any number
+# of path segments). Nothing else ships, so stray files cannot leak into a
+# release. It must match agent.yaml and the instruction file; add
+# output.schema.json, support files or knowledge/** when you use them.
 publish:
-  include: [agent.yaml, README.md, AGENT.md, LICENSE]
-  channel: stable
+  include: [agent.yaml, AGENT.md, README.md, LICENSE]
+  channel: stable              # stable (default) | beta
