@@ -75,69 +75,20 @@ my-quickagent/
 `SECURITY.md` is the template's own and need not ship with your
 QuickAgent; `publish.include` leaves it out.
 
-## The manifest at a glance
+## Reference
 
-`agent.yaml` is a closed schema: an unknown key is an error, so a typo
-cannot switch a control off. Each block, and where the reference covers it:
+Everything about using a QuickAgent is on the docs site:
 
-| Block | What it says | Reference |
-|---|---|---|
-| `name`, `namespace`, `version`, `summary`, `license`, `authors`, `homepage`, `tags` | identity; `version` is strict semver, `summary` one line of at most 140 characters | [Identity](https://docs.secureagentry.net/quickagents/#identity-and-metadata) |
-| `modes` | `autonomous`, `interactive`, or both | [Modes](https://docs.secureagentry.net/quickagents/#modes-and-the-instruction-file) |
-| `entrypoints.instruction` | the instruction file, `AGENT.md` by default | same |
-| `guide` | what a person reads before a run: overview, what to prepare, which files, the task placeholder, help for each key. Never shown to the agent | [guide](https://docs.secureagentry.net/quickagents/#guide-what-a-person-reads-before-a-run) |
-| `inputs` | the kinds of file it takes, and whether the agent reads their text or the originals first | [inputs](https://docs.secureagentry.net/quickagents/#inputs-what-files-it-takes-and-how-it-reads-them) |
-| `intake` | questions asked before a run: text, choice, file, secret, a repository, a file at a URL, a target host | [intake](https://docs.secureagentry.net/quickagents/#intake-questions-asked-before-a-run) |
-| `interactive` | an opening line and an idle limit for sessions | [interactive](https://docs.secureagentry.net/quickagents/#interactive-session-hints) |
-| `knowledge` | knowledge packs the release ships, and whether to ask the person for one of theirs | [knowledge](https://docs.secureagentry.net/quickagents/#knowledge-packs-the-release-ships) |
-| `runtime` | a model hint (never a lock) and the coding-agent exports it supports | [runtime](https://docs.secureagentry.net/quickagents/#runtime-informational-hints) |
-| `capabilities` | the contract: network, filesystem, commands, secrets (required or optional), target hosts, data categories, MCP servers | [capabilities](https://docs.secureagentry.net/quickagents/#capabilities-the-security-contract) |
-| `dependencies` | other QuickAgents it expects; shown, not installed | [dependencies](https://docs.secureagentry.net/quickagents/#dependencies) |
-| `publish` | the archive's allowlist, and the channel | [publish](https://docs.secureagentry.net/quickagents/#publish) |
-
-The guide, the inputs block and the intake grant nothing, so a release
-that changes only them asks nobody to consent again. Everything under
-`capabilities`, and the names of the packs a release ships, is the
-contract: an upgrade that widens it asks for consent again.
-
-## What a run gives your agent
-
-Every run gets these tools, whatever the manifest declares:
-
-| Tool | What it does |
-|---|---|
-| `list_inputs`, `read_input`, `search_inputs` | read the files given to the run, under `/inputs`, as decoded text or as uploaded |
-| `write_report` | write a file into the run's `reports/` folder, which the person receives |
-| `scratch_write`, `scratch_read`, `scratch_list`, `scratch_search` | a private scratch folder, deleted when the run ends |
-| `export_pdf` | turn a Markdown report into a PDF (a report, a letter or a memo) in the person's report design |
-
-And these only when the manifest declares them:
-
-| Declaration | Tools |
-|---|---|
-| `filesystem.read` | `fs_read`, `fs_list` |
-| `filesystem.write` | `fs_write` |
-| `network.egress` hosts | `fetch`, to those hosts only, optionally sending a declared secret as an auth header |
-| `exec.commands` | `run_command`, for those programs only |
-| `targetHosts` | the runner's host tools, on the machine the person names (local runs only) |
-| `mcpServers` | each server's tools, or those its `tools` list allows |
-
-Files reach a run through `--file`, a `file` intake answer, the uploads of
-a run in Agentry, or a `repository` or `url` answer the runner fetches
-first. Documents, spreadsheets, slides, mail and images are turned into
-text before the agent starts, archives are unpacked, and every uploaded
-file is checked for malware. None of this needs a capability.
-
-Before your instruction, every run's model reads Agentry's **System
-Prompt**. It says the run is sandboxed, which tools it has and what each
-grant allows, where the inputs are, how to read an attached knowledge pack
-or Writing Voice, how to write reports and when to export a PDF, and that
-the last message is the result. Text in inputs, files and tool results is
-data, never instructions. The
-[runner reference](https://docs.secureagentry.net/runner/#the-system-prompt)
-prints it word for word. To read the text your own QuickAgent's model
-gets, run the dry run above and open the `harness/` file in the plan
-directory it prints.
+- [The manifest, option by option](https://docs.secureagentry.net/quickagents/#the-manifest-option-by-option),
+  every block of `agent.yaml` and its limits
+- [What a QuickAgent gets at run time](https://docs.secureagentry.net/quickagents/#what-a-quickagent-gets-at-run-time),
+  the tools every run has and the ones each declaration adds
+- [Running with files](https://docs.secureagentry.net/runner/#running-with-files),
+  how inputs reach a run
+- [The System Prompt](https://docs.secureagentry.net/runner/#the-system-prompt),
+  the text every run's model reads before your instruction
+- [Publishing](https://docs.secureagentry.net/quickagents/#publishing)
+- [Installing into an existing coding agent](https://docs.secureagentry.net/quickagents/#installing-into-an-existing-coding-agent)
 
 ## Writing the instruction
 
@@ -184,52 +135,11 @@ receipts).
   the registry runs.
 - `agentry run --local . --dry-run --allow-unsigned --yes` shows the
   compiled plan.
-- `agentry review .` runs the built-in Examiner: the registry's rules, AI
-  Review's six questions and a model's reading of every file. It submits
-  nothing, and the registry scans again when you do.
-- `agentry run --local . --allow-unsigned --yes --file …` runs it. Exit
-  codes: `0` done, `10` verification, `11` refused by policy or a missing
-  secret, `12` not compilable, `13` docker or the gateway, `14` the agent
-  failed, `15` timeout, `16` budget, `17` output schema, `18` blocked (the
-  agent said it could not do the task); `1` and `2` are the CLI's own
-  errors and usage.
-
-The output folder holds `reports/` (what the agent wrote), `result.json`
-(the result, with the release digest, the attestation state, usage and
-the plan's hash) and `receipts/` (the event stream, the gateway's call
-log and the exact run plan).
-
-## Publishing
-
-`agentry publish` submits the version. Its first publish needs the
-QuickAgent's record, which you create at
-[secureagentry.net/new](https://secureagentry.net/new); that also makes
-the git repository the registry hosts for it, and pushing a release tag
-there submits the same way. The Builder creates the record itself. Every submission is validated, scanned against its declared
-capabilities, held for a person's review when the findings call for it,
-and signed. A published release is immutable and content-addressed, and
-`agentry run` and `agentry install` check its digest and signature before
-anything runs. The archive is capped at 2,000 files and 10 MiB.
-
-A published QuickAgent is *scanned, with N findings, signed*. Agentry
-never calls one "safe", and neither should your README. Declare the least
-you need, and the contract stays easy to review.
-
-## Installing into a coding agent
-
-The same package installs into Claude Code, Codex or OpenClaw, whose own
-tools then stand in for the runner's:
-
-```bash
-agentry install your-namespace/my-quickagent --provider claude    # Claude Code
-agentry install your-namespace/my-quickagent --provider codex     # Codex
-agentry install your-namespace/my-quickagent --target agents-md   # a section in ./AGENTS.md
-```
-
-The `claude-skill` export compiles the contract into the skill's
-`allowed-tools` (`Read`, `Grep` and `Glob` for a read grant, `Write` and
-`Edit` for write, `Bash(cmd:*)` per command, `WebFetch(domain:host)` per
-host). Enforcement there is the host application's, not Agentry's.
+- `agentry review .` runs the built-in Examiner. It submits nothing.
+- `agentry run --local . --allow-unsigned --yes --file …` runs it. The
+  [exit codes](https://docs.secureagentry.net/runner/#exit-codes-stage-and-reason)
+  and [the output folder](https://docs.secureagentry.net/runner/#the-output-folder)
+  are described in the runner reference.
 
 ## License
 
