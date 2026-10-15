@@ -204,7 +204,7 @@ capabilities:
   # from the operator's registries for this release only. A remote server
   # is named by its https address and takes no version, egress, env or
   # oauth. Check that a server runs here before you declare it:
-  # https://docs.secureagentry.net/runner/#declared-mcp-servers-runner-plan-3
+  # https://docs.secureagentry.net/runner/#declared-mcp-servers
   # mcpServers:
   #   - npm: github-mcp-server-js        # or pypi: <name>
   #     version: 0.1.7                   # exact; ranges are refused
