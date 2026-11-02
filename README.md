@@ -50,14 +50,49 @@ agentry publish
 agentry run your-namespace/my-quickagent@^0.1 --file notes.pdf
 ```
 
-`make validate`, `make dry-run`, `make review` and `make run FILES="…"`
-wrap the checks and the local run.
+`make validate`, `make check`, `make dry-run`, `make review` and
+`make run FILES="…"` wrap the checks and the local run.
 
 Two other ways to start: `agentry init` scaffolds a smaller package (and
 `agentry init --from` imports a `SKILL.md` or an MCP registry
 `server.json`), and `agentry draft "what it should do"` has the built-in
 Drafter write one (it needs your own TypeSafe key, as `review` does). The [Builder](https://secureagentry.net/build), on the
 site and in the desktop app, does both in a form.
+
+## Choose a variant
+
+The template at the root is an **autonomous** QuickAgent: it runs from a
+task and files, writes its result and ends. A QuickAgent that should stay
+on the person's computer, keep its conversation and memory between starts
+and act on reminders is a **persistent** agent, and its variant lives in
+[`variants/persistent`](variants/persistent).
+
+| Variant | Mode | You get | Run it with |
+|---|---|---|---|
+| the template (this folder) | `autonomous` | a report from the files you give it | `agentry run` |
+| [`variants/persistent`](variants/persistent) | `persistent` | a notes keeper with a memory, tasks and a persona | `agentry agent install`, then `agentry agent start` |
+
+To use the persistent variant, copy it over the template in your clone and
+remove the folder:
+
+```bash
+cp -r variants/persistent/. . && rm -r variants
+```
+
+Its `agent.yaml` sets `modes: [persistent]`, declares what the agent may do
+in `capabilities.persistent` (here `memory` and `clock`), names the agent in
+`persona` and ships the persona's text as `PERSONA.md`. Its `AGENT.md` calls
+only the tools those two keys give. Persistent agents install with CLI
+v0.6.1015 or later, and Agentry Desktop 0.7.1 or later installs one from
+Browse. Subagents, listed in `dependencies.agents` and left commented out in
+the variant, need CLI v0.7.1 or later. The
+[QuickAgents documentation](https://docs.secureagentry.net/quickagents/)
+has the manifest reference, and the page on
+[persistent agents](https://docs.secureagentry.net/agentry/persistent-agents/)
+explains how people use one.
+
+Check the template and every variant with `make check`, or one folder with
+`make validate DIR=variants/persistent`.
 
 ## What is in it
 
@@ -69,11 +104,15 @@ my-quickagent/
 ├── LICENSE                     # required to publish publicly, with `license` set
 ├── output.schema.example.json  # rename to output.schema.json for JSON output
 ├── Makefile                    # validate, dry-run, review, run
-└── .gitignore                  # keeps run output out of the repository
+├── .gitignore                  # keeps run output out of the repository
+└── variants/
+    └── persistent/             # a persistent agent: agent.yaml, AGENT.md,
+                                # PERSONA.md, README.md, LICENSE
 ```
 
 `SECURITY.md` is the template's own and need not ship with your
-QuickAgent; `publish.include` leaves it out.
+QuickAgent; `publish.include` leaves it out, and so it leaves out
+`variants/`.
 
 ## Reference
 
