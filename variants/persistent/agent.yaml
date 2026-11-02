@@ -1,0 +1,111 @@
+# agent.yaml: a persistent QuickAgent, schema v2.
+#
+# A persistent agent is a conversation the runner keeps on the person's
+# computer: its conversation, its memory and its files outlive each start
+# and stop. This variant keeps notes and reminders for the person. It
+# installs with `agentry agent install` (CLI v0.6.1015 or later) and runs
+# with `agentry agent start`, not `agentry run`.
+#
+# Three things belong to this mode: `modes` is [persistent], the
+# `capabilities.persistent` block names what the agent may do beyond an
+# ordinary run, and `persona` names the agent and ships the text it takes
+# on. Every other block works as in an autonomous QuickAgent. The manifest
+# reference, with each option and its limits, is
+# https://docs.secureagentry.net/quickagents/
+# and the persistent parts are under
+# https://docs.secureagentry.net/quickagents/#a-persistent-agent-capabilitiespersistent-persona-and-subagents
+# The person's view of a persistent agent is
+# https://docs.secureagentry.net/agentry/persistent-agents/.
+
+schemaVersion: "2"
+
+# Rename both. name is lowercase letters, digits and hyphens; namespace is
+# your handle or your organization's.
+name: my-persistent-agent
+namespace: your-namespace
+
+# persistent alone is the usual choice. Add autonomous only when the same
+# instruction also makes sense as a one-off run that ends with a result.
+modes: [persistent]
+
+# Strict semver, no leading "v".
+version: 0.1.0
+
+# One plain-text line, at most 140 characters. AGENT.md's frontmatter
+# description equals it.
+summary: "Keeps the notes you give it, finds them again and reminds you of what is due"
+
+license: MIT
+
+authors:
+  - name: Your Name
+
+tags: [assistant, notes, reminders]
+
+entrypoints:
+  instruction: AGENT.md
+
+# Shown to people before they install. The agent never sees it.
+guide:
+  overview: |
+    A notes keeper that stays running on your computer. It keeps what you
+    tell it, finds it again when you ask, and adds a task when you ask to
+    be reminded. It reaches nothing on the internet.
+  task: "e.g. Remember that the quarterly report is due on Friday."
+
+# A persistent session opens with this line.
+interactive:
+  opening: "Hello. What should I keep for you, or what should I remind you of?"
+
+runtime:
+  models: ["claude-*"]
+
+# The capability contract. A persistent agent has no network, programs or
+# folders beyond what is declared; its own files are its share folder and
+# its data volume, which need no grant.
+capabilities:
+  network:
+    egress: none
+  filesystem:
+    read: none
+    write: none
+  exec: none
+  # What the agent may do beyond an ordinary run. Every key is off unless
+  # declared, and the instruction may call only the tools its keys give.
+  #   clock:  the time on each turn, and the tools task_add, task_list,
+  #           task_update and task_remove with a heartbeat that fires them
+  #   memory: a memory on the agent's own volume, and the tool recall
+  # Other keys: skills, secrets, selfConfigure, calendars, meetings, mail,
+  # imageServers, coder, web, helper and review. Declare only what the
+  # instruction uses: the person agrees to each key when installing.
+  persistent:
+    memory: true
+    clock: true
+
+# The agent's name and the text it takes on, in a file of its own that
+# publish.include must match. The person may rename the agent and replace
+# the text; `editable: false` keeps the text and still allows a new name.
+persona:
+  name: Tally
+  file: PERSONA.md
+
+# Subagents: published QuickAgents this agent may start as runs of their
+# own, each in its own sandbox. Leave this out unless one does a part of the
+# task better than the instruction could. Each entry needs the reference of
+# a QuickAgent that is published for everyone, runs autonomously and is not
+# persistent, a semver constraint on a version you have read, and a reason of
+# one line, shown when the person agrees. At most 16. Declaring one gives the
+# agent subagent_list, subagent_run and subagent_result, so AGENT.md then
+# says when it uses them and what it does when a subagent fails or returns
+# nothing. Installing subagents needs CLI v0.7.1 or later; a folder
+# installed with --local runs none of them.
+# dependencies:
+#   agents:
+#     - ref: acme/pdf-summary
+#       version: "^1.4.0"
+#       why: Summarises the PDFs you put in the share folder
+
+# Every file the release ships, PERSONA.md included.
+publish:
+  include: [agent.yaml, AGENT.md, PERSONA.md, README.md, LICENSE]
+  channel: stable
