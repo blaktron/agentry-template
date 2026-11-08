@@ -4,9 +4,9 @@ A persistent QuickAgent: it stays on your computer, keeps its conversation
 and its memory between starts, and keeps your notes and reminders. It
 reaches nothing on the internet, runs no programs and holds no accounts.
 
-**Replace this README with your own.** It is shown on your agent's page:
-what the agent does, what it keeps, what a person gives it and what it
-returns.
+**This README is about the template.** Replace it with your own: it is
+shown on your agent's page, so say what the agent does, what it keeps,
+what a person gives it and what it returns.
 
 ## What it does
 

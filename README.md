@@ -30,7 +30,9 @@ $EDITOR agent.yaml AGENT.md
 # Copilot plan) and the docker MCP gateway.
 agentry setup
 
-# The registry's manifest rules and offline scanners, run here.
+# The registry's manifest rules and three of its scanners, run here. It
+# also refuses what is still the template's: the namespace, the author, the
+# LICENSE's <year> <your name> and this README.
 agentry validate .
 
 # The compiled run plan: tools, mounts, network. No docker needed.
@@ -170,8 +172,14 @@ receipts).
 
 ## Checking before you publish
 
-- `agentry validate .` runs the manifest rules and the offline scanners
-  the registry runs.
+- `agentry validate .` runs the registry's manifest rules and three of its
+  scanners (S1 inventory, S3 hidden content, S4 injection signatures), and
+  ends by naming the stages only the registry runs: secrets, AI Review,
+  support scripts, declared MCP servers, publisher signals and the diff
+  against the previous version. It also refuses what is still the
+  template's: `namespace: your-namespace`, the author `Your Name`, the
+  LICENSE's `<year> <your name>` and this README. A pass is advisory; the
+  registry runs every stage when you publish, and decides.
 - `agentry run --local . --dry-run --allow-unsigned --yes` shows the
   compiled plan.
 - `agentry review .` runs the built-in Examiner. It submits nothing.

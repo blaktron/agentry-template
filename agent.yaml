@@ -195,6 +195,28 @@ capabilities:
   # runner's host tools; the manifest never names the machine. Local runs
   # only: a run in Agentry refuses a target host.
   # targetHosts: [server]
+  # A headless browser for the run, local and in Agentry: the sites are url
+  # questions of the intake (the person's answer is the site), hosts the
+  # fixed hosts its pages need (exact names or *. suffixes, at most 32),
+  # scope site (the default: the site, its subdomains and the hosts) or
+  # public (any public site), and the declared secrets it may type into the
+  # site's forms (never with public). The agent never reads a typed value.
+  # https://docs.secureagentry.net/quickagents/ ("The browser's site")
+  # browser:
+  #   sites: [site]                     # needs a url question with id site
+  #   hosts: [fonts.googleapis.com]
+  #   scope: site
+  #   secrets: [SITE_PASSWORD]          # also under secrets above
+  # The person's own computer, through Agentry Desktop: application servers
+  # from Agentry's catalogue, by id (at most 4), each optionally narrowed
+  # to some of its tools, and computer use of the application's windows
+  # (app) or of the whole screen (screen). Local runs only: a run in
+  # Agentry never has it. https://docs.secureagentry.net/desktop/
+  # desktop:
+  #   servers:
+  #     - id: blender
+  #       tools: [get_scene_info, look]   # optional narrowing
+  #   computerUse: app                  # app | screen; omit for none
   # Categories of data it touches, for review and audit:
   # email | calendar | files | tickets | code | messages | payments | other
   dataAccess: [files]
@@ -210,6 +232,8 @@ capabilities:
   #     version: 0.1.7                   # exact; ranges are refused
   #     tools: [list_issues, get_issue]  # optional allowlist; omit for all
   #     secrets: [GITHUB_TOKEN]          # NAMES the server reads
+  #     args: [--read-only]              # words its command starts with
+  #                                      # (literal, in the release diff)
   #     env:                             # plain settings, never a secret
   #       GITHUB_PERMISSION: read-only   # (at most 16, in the release diff)
   #     egress: [api.github.com]         # the server's own hosts
